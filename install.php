@@ -44,11 +44,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?><!doctype html>
 <html lang="pt-BR" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Instalação — BayApp</title><link rel="stylesheet" href="assets/css/app.css"></head>
+<title>Instalação — BayApp</title><link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png"><link rel="stylesheet" href="assets/css/app.css"></head>
 <body class="auth-body"><div class="blob b1"></div><div class="blob b2"></div>
 <main class="auth-card wide anim-up">
 <?php if (!empty($done)): ?>
-  <div class="brand big"><span class="logo">B</span> BayApp</div>
+  <div class="brand big"><?= brand_logo() ?></div>
   <h1>Tudo pronto! 🎉</h1>
   <p class="muted">O banco foi criado e o administrador cadastrado.</p>
   <ul class="checklist">
@@ -59,7 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </ul>
   <a class="btn primary" href="index.php">Entrar no sistema →</a>
 <?php else: ?>
-  <div class="brand big"><span class="logo">B</span> BayApp</div>
+  <div class="brand big"><?= brand_logo() ?></div>
   <h1>Instalação</h1><p class="muted">Preencha os dados do MySQL criado no hPanel e o primeiro administrador.</p>
   <?php if ($err): ?><div class="flash err"><?= e($err) ?></div><?php endif; ?>
   <form method="post" class="form-grid"><?= csrf_field() ?>

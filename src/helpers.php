@@ -113,6 +113,14 @@ function guess_link_type(string $url): string
     };
 }
 
+/** Logo da marca: versão branca (tema escuro) e azul-escuro (tema claro); o CSS alterna conforme o tema. */
+function brand_logo(string $alt = 'BayGroups'): string
+{
+    $a = e($alt);
+    return '<img class="logo-img logo-w" src="assets/img/logo.png" alt="' . $a . '">'
+         . '<img class="logo-img logo-d" src="assets/img/logo-dark.png" alt="" aria-hidden="true">';
+}
+
 function icon(string $n, int $s = 20): string
 {
     static $i = [
