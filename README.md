@@ -11,6 +11,7 @@ Aplicativo em **PHP 8 + MySQL** (preto, branco e roxo) para agências: cadastro 
 | **Vencimentos** | Domínios, hospedagem, e-mail, SSL etc. com valor, recorrência (mensal/anual) e botão “pago” que já agenda o próximo ciclo |
 | **Alertas** | Cron diário envia avisos a **30, 15 e 7 dias** (uma vez por marco) por **e-mail** e **WhatsApp** |
 | **Pastas & Links** | Drive, Canva, Agenda, Docs, Figma — tipo detectado automaticamente |
+| **Portal do cliente** | `portal.php`: login próprio para clientes (vários usuários por cliente), somente leitura — vê vencimentos e pastas/links; **não** vê senhas nem observações internas. Criado na aba *Portal* de cada cliente |
 | **Guia** | Página de passo a passo + tour interativo no primeiro acesso |
 
 ## Instalação na Hostinger (hPanel)
@@ -25,6 +26,9 @@ Aplicativo em **PHP 8 + MySQL** (preto, branco e roxo) para agências: cadastro 
    `/usr/bin/php /home/uXXXX/domains/seudominio.com/public_html/cron.php`
 
 > ⚠️ Faça backup do `config.php`: a `app_key` dentro dele é a chave que descriptografa as senhas. Sem ela, as senhas salvas não podem ser recuperadas.
+
+## Portal do cliente
+Em *Clientes → (cliente) → aba Portal*, crie o login e envie ao cliente o link `https://seudominio.com/portal.php` com e-mail e senha. Instalações antigas criam a tabela `client_users` automaticamente no primeiro acesso após a atualização.
 
 ## WhatsApp
 - **CallMeBot (grátis):** envie “I allow callmebot to send me messages” ao número deles no WhatsApp para obter a *apikey* e informe seu número + apikey.

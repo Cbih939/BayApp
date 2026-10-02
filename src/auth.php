@@ -59,8 +59,45 @@ function attempt_login(string $email, string $pass): ?string
     }
     q('DELETE FROM login_attempts WHERE ip = ?', [$ip]);
     session_regenerate_id(true);
+    unset($_SESSION['cuid']);
     $_SESSION['uid'] = (int) $u['id'];
     q('UPDATE users SET ultimo_login = ? WHERE id = ?', [now(), $u['id']]);
     audit('login', $u['email']);
+    return null;
+}
+
+/* ---------------- Portal do cliente ---------------- */
+
+/** Usuário do portal logado (sessão separada da equipe), ou null. */
+function portal_user(): ?array
+{
+    static $u = false;
+    if ($u !== false) return $u;
+    $u = null;
+    if (!empty($_SESSION['cuid'])) {
+        $u = row('SELECT cu.id, cu.nome, cu.email, cu.client_id, cu.ativo, c.nome AS cliente, c.empresa, c.status
+                  FROM client_users cu JOIN clients c ON c.id = cu.client_id WHERE cu.id = ?', [$_SESSION['cuid']]);
+        if (!$u || !$u['ativo'] || $u['status'] !== 'ativo') { $u = null; unset($_SESSION['cuid']); }
+    }
+    return $u;
+}
+
+/** Retorna mensagem de erro ou null em caso de sucesso. */
+function attempt_portal_login(string $email, string $pass): ?string
+{
+    $ip = client_ip();
+    q('DELETE FROM login_attempts WHERE criado_em < ?', [date('Y-m-d H:i:s', time() - 900)]);
+    if ((int) val('SELECT COUNT(*) FROM login_attempts WHERE ip = ?', [$ip]) >= 8) return 'Muitas tentativas. Aguarde 15 minutos.';
+    $u = row('SELECT cu.*, c.status FROM client_users cu JOIN clients c ON c.id = cu.client_id WHERE cu.email = ?', [strtolower($email)]);
+    if (!$u || !$u['ativo'] || $u['status'] !== 'ativo' || !password_verify($pass, $u['senha_hash'])) {
+        insert('login_attempts', ['ip' => $ip, 'email' => $email, 'criado_em' => now()]);
+        return 'E-mail ou senha incorretos.';
+    }
+    q('DELETE FROM login_attempts WHERE ip = ?', [$ip]);
+    session_regenerate_id(true);
+    unset($_SESSION['uid']);
+    $_SESSION['cuid'] = (int) $u['id'];
+    q('UPDATE client_users SET ultimo_login = ? WHERE id = ?', [now(), $u['id']]);
+    audit('portal_login', $u['email']);
     return null;
 }
