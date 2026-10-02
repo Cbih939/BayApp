@@ -128,6 +128,11 @@ function schema_sql(string $driver): array
             ip VARCHAR(45) NULL, criado_em VARCHAR(19) NOT NULL){$eng}",
         "CREATE TABLE IF NOT EXISTS login_attempts (
             id $pk, ip VARCHAR(45) NOT NULL, email VARCHAR(190) NULL, criado_em VARCHAR(19) NOT NULL){$eng}",
+        "CREATE TABLE IF NOT EXISTS client_users (
+            id $pk, client_id INT NOT NULL, nome VARCHAR(120) NOT NULL, email VARCHAR(190) NOT NULL UNIQUE,
+            senha_hash VARCHAR(255) NOT NULL, ativo INT NOT NULL DEFAULT 1,
+            ultimo_login VARCHAR(19) NULL, criado_em VARCHAR(19) NOT NULL,
+            FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE){$eng}",
         'CREATE INDEX idx_cred_client ON credentials(client_id)',
         'CREATE INDEX idx_bill_venc ON billings(vencimento)',
         'CREATE INDEX idx_bill_client ON billings(client_id)',
@@ -136,6 +141,16 @@ function schema_sql(string $driver): array
         'CREATE INDEX idx_login_ip ON login_attempts(ip)',
     ];
     return $t;
+}
+
+const SCHEMA_VERSION = '2';
+
+/** Atualiza instalações antigas (cria tabelas novas) uma única vez. */
+function ensure_schema(): void
+{
+    if (setting('schema_v') === SCHEMA_VERSION) return;
+    create_schema(db(), cfg('db')['driver'] ?? 'mysql');
+    set_setting('schema_v', SCHEMA_VERSION);
 }
 
 function create_schema(PDO $pdo, string $driver): void

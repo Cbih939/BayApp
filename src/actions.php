@@ -115,6 +115,31 @@ function handle_action(string $a): string
             q('DELETE FROM links WHERE id = ?', [$id]); flash('Link removido.');
             return $ret;
 
+        /* ---------------- Portal do cliente ---------------- */
+        case 'portal_user_save':
+            require_can('clients.edit');
+            $cid = (int) post('client_id');
+            if (!row('SELECT id FROM clients WHERE id = ?', [$cid])) throw new RuntimeException('Cliente não encontrado.');
+            $email = strtolower(post('email'));
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL) || post('nome') === '') throw new RuntimeException('Informe nome e e-mail válidos.');
+            if (row('SELECT id FROM client_users WHERE email = ? AND id <> ?', [$email, $id])) throw new RuntimeException('Já existe um acesso ao portal com este e-mail.');
+            $senha = (string) ($_POST['senha'] ?? '');
+            $d = ['client_id' => $cid, 'nome' => post('nome'), 'email' => $email, 'ativo' => isset($_POST['ativo']) ? 1 : 0];
+            if ($senha !== '' && strlen($senha) < 8) throw new RuntimeException('A senha precisa ter ao menos 8 caracteres.');
+            if ($senha !== '') $d['senha_hash'] = password_hash($senha, PASSWORD_DEFAULT);
+            if ($id) { update('client_users', $id, $d); flash('Acesso ao portal atualizado.'); }
+            else {
+                if ($senha === '') throw new RuntimeException('Defina uma senha com ao menos 8 caracteres.');
+                insert('client_users', $d + ['criado_em' => now()]); flash('Acesso ao portal criado. Envie o link e a senha ao cliente 🎉');
+            }
+            audit('portal_user_save', $email);
+            return $ret;
+
+        case 'portal_user_delete':
+            require_can('delete');
+            q('DELETE FROM client_users WHERE id = ?', [$id]); audit('portal_user_delete', "#$id"); flash('Acesso ao portal removido.');
+            return $ret;
+
         /* ---------------- Equipe ---------------- */
         case 'user_save':
             require_can('users');

@@ -29,6 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             insert('users', ['nome' => $v['nome'] ?: 'Administrador', 'email' => strtolower($v['email']),
                 'senha_hash' => password_hash($senha, PASSWORD_DEFAULT), 'papel' => 'admin', 'ativo' => 1, 'criado_em' => now()]);
             set_setting('empresa_nome', $v['empresa']);
+            set_setting('schema_v', SCHEMA_VERSION);
             set_setting('cron_token', bin2hex(random_bytes(16)));
             set_setting('alert_emails', strtolower($v['email']));
             $php = "<?php\nreturn " . var_export($conf, true) . ";\n";
