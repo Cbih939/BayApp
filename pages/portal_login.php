@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="pt-BR" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>Portal do cliente — <?= e($empresa) ?></title>
-<link rel="stylesheet" href="assets/css/app.css">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png"><link rel="apple-touch-icon" href="assets/img/favicon.png"><link rel="stylesheet" href="assets/css/app.css">
 <script>try{var t=localStorage.getItem('bay-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script></head>
 <body class="auth-body"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
 <main class="auth-card anim-up">
-  <div class="brand big"><span class="logo">B</span> <?= e($empresa) ?></div>
+  <div class="brand big"><?= brand_logo($empresa) ?></div>
   <p class="eyebrow">Portal do cliente</p>
   <h1>Acompanhe sua conta</h1>
   <p class="muted">Veja vencimentos e acesse suas pastas e links em um só lugar.</p>

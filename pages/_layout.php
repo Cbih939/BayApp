@@ -8,12 +8,13 @@ $due = (int) val("SELECT COUNT(*) FROM billings WHERE status = 'pendente' AND ve
 <title><?= e($title) ?> — <?= e(setting('empresa_nome', 'BayApp')) ?></title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png"><link rel="apple-touch-icon" href="assets/img/favicon.png">
 <link rel="stylesheet" href="assets/css/app.css">
 <script>try{var t=localStorage.getItem('bay-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 </head><body>
 <div class="shell">
   <aside class="sidebar" id="sidebar">
-    <a class="brand" href="<?= url() ?>"><span class="logo">B</span> <span><?= e(setting('empresa_nome', 'BayApp')) ?></span></a>
+    <a class="brand" href="<?= url() ?>"><?= brand_logo(setting('empresa_nome', 'BayGroups')) ?></a>
     <nav>
       <?php foreach ($NAV as $slug => [$label, $ico, $perm]): if ($perm && !can($perm)) continue; ?>
         <a href="<?= url($slug) ?>" data-tour="<?= $slug ?>" class="<?= $p === $slug || ($p === 'cliente' && $slug === 'clientes') ? 'active' : '' ?>">
