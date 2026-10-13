@@ -11,6 +11,7 @@ $NAV = [
     'senhas'      => ['Senhas', 'key', 'creds.view'],
     'tarefas'     => ['Tarefas', 'tasks', null],
     'vencimentos' => ['Vencimentos', 'calendar', 'billing.view'],
+    'relatorios'  => ['Relatórios', 'chart', null],
     'chat'        => ['Mensagens', 'chat', null],
     'links'       => ['Pastas & Links', 'folder', null],
     'usuarios'    => ['Equipe', 'users', 'users'],
@@ -40,6 +41,22 @@ if ($p === 'task_api') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !csrf_ok()) { http_response_code(403); exit('{"erro":"negado"}'); }
     try { task_move_to((int) ($_POST['id'] ?? 0), post('status')); exit('{"ok":true}'); }
     catch (RuntimeException $ex) { http_response_code(422); exit(json_encode(['erro' => $ex->getMessage()])); }
+}
+
+/* ---------- Download de relatório (PDF / CSV) ---------- */
+if ($p === 'relatorio_export') {
+    $f = report_filters($_GET);
+    $r = report_build($f);
+    $name = 'relatorio-' . $f['from'] . '_' . $f['to'];
+    audit('report_export', strtoupper((string) ($_GET['fmt'] ?? 'pdf')) . ' ' . $f['from'] . ' a ' . $f['to']);
+    if (($_GET['fmt'] ?? '') === 'csv') {
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $name . '.csv"');
+        exit(report_csv($r));
+    }
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: attachment; filename="' . $name . '.pdf"');
+    exit(report_pdf($r));
 }
 
 /* ---------- AJAX: revelar senha ---------- */

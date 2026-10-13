@@ -234,3 +234,13 @@ body.portal{min-height:100vh}
 .chip.tag-none{color:var(--muted);border-color:var(--border)}
 .dash-tasks{margin-bottom:34px}
 @media (max-width:1000px){.kanban{grid-template-columns:repeat(4,78vw)}}
+
+/* Relatórios */
+.rep-filters{align-items:flex-end}.rep-filters label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted)}.rep-filters select,.rep-filters input{min-width:160px}
+.rep-presets{margin-bottom:18px}.rep-presets .chip.active{background:var(--purple);color:#fff}
+.rep-actions{margin-bottom:22px}.rep-kpis{margin-bottom:22px}.rep-kpi{font-size:1.5rem;font-family:var(--display)}
+.rep-charts{grid-template-columns:repeat(auto-fit,minmax(340px,1fr));margin-bottom:26px}.rep-charts h4{margin-bottom:12px}
+.rep-svg{width:100%;height:auto;display:block}.rep-t{fill:var(--text);font-size:12px;font-family:var(--font)}.rep-v{fill:var(--muted)}.rep-empty{padding:18px 0}
+.rep-table{overflow-x:auto;padding:6px 14px;margin-bottom:22px}.rep-table table{width:100%;border-collapse:collapse;font-size:.88rem}
+.rep-table th{text-align:left;color:var(--muted);font-weight:600;padding:10px 8px;border-bottom:1px solid var(--border);white-space:nowrap}.rep-table td{padding:9px 8px;border-bottom:1px solid var(--border)}
+@media (max-width:600px){.rep-charts{grid-template-columns:1fr}}
