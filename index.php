@@ -9,6 +9,7 @@ $NAV = [
     'dashboard'   => ['Início', 'home', null],
     'clientes'    => ['Clientes', 'briefcase', null],
     'senhas'      => ['Senhas', 'key', 'creds.view'],
+    'tarefas'     => ['Tarefas', 'tasks', null],
     'vencimentos' => ['Vencimentos', 'calendar', 'billing.view'],
     'chat'        => ['Mensagens', 'chat', null],
     'links'       => ['Pastas & Links', 'folder', null],
@@ -32,6 +33,14 @@ if (!user()) {
 
 /* ---------- AJAX: chat (polling) ---------- */
 if ($p === 'chat_api') chat_api('team', null, user());
+
+/* ---------- AJAX: mover tarefa (arrastar no quadro) ---------- */
+if ($p === 'task_api') {
+    header('Content-Type: application/json');
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !csrf_ok()) { http_response_code(403); exit('{"erro":"negado"}'); }
+    try { task_move_to((int) ($_POST['id'] ?? 0), post('status')); exit('{"ok":true}'); }
+    catch (RuntimeException $ex) { http_response_code(422); exit(json_encode(['erro' => $ex->getMessage()])); }
+}
 
 /* ---------- AJAX: revelar senha ---------- */
 if ($p === 'ajax') {

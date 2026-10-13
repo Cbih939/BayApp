@@ -141,6 +141,12 @@ function schema_sql(string $driver): array
             id $pk, client_id INT NOT NULL, side VARCHAR(8) NOT NULL, user_id INT NOT NULL,
             nome VARCHAR(120) NOT NULL, seen_at VARCHAR(19) NOT NULL,
             FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE){$eng}",
+        "CREATE TABLE IF NOT EXISTS tasks (
+            id $pk, titulo VARCHAR(200) NOT NULL, descricao TEXT NULL, client_id INT NULL, assignee_id INT NULL,
+            criado_por INT NULL, prioridade VARCHAR(8) NOT NULL DEFAULT 'media', status VARCHAR(8) NOT NULL DEFAULT 'a_fazer',
+            prazo VARCHAR(10) NULL, concluida_em VARCHAR(19) NULL, criado_em VARCHAR(19) NOT NULL, atualizado_em VARCHAR(19) NOT NULL,
+            FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL,
+            FOREIGN KEY (assignee_id) REFERENCES users(id) ON DELETE SET NULL){$eng}",
         'CREATE INDEX idx_cred_client ON credentials(client_id)',
         'CREATE INDEX idx_bill_venc ON billings(vencimento)',
         'CREATE INDEX idx_bill_client ON billings(client_id)',
@@ -149,12 +155,14 @@ function schema_sql(string $driver): array
         'CREATE INDEX idx_login_ip ON login_attempts(ip)',
         'CREATE INDEX idx_msg_client ON messages(client_id, id)',
         'CREATE INDEX idx_msg_unread ON messages(sender, lida_em)',
+        'CREATE INDEX idx_task_assignee ON tasks(assignee_id, status)',
+        'CREATE INDEX idx_task_client ON tasks(client_id)',
         'CREATE INDEX idx_presence ON chat_presence(client_id, side, user_id)',
     ];
     return $t;
 }
 
-const SCHEMA_VERSION = '4';
+const SCHEMA_VERSION = '5';
 
 /** Atualiza instalações antigas (cria tabelas novas) uma única vez. */
 function ensure_schema(): void

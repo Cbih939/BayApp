@@ -13,6 +13,7 @@ Aplicativo em **PHP 8 + MySQL** (preto, branco e roxo) para agências: cadastro 
 | **Pastas & Links** | Drive, Canva, Agenda, Docs, Figma — tipo detectado automaticamente |
 | **Portal do cliente** | `portal.php`: login próprio para clientes (vários usuários por cliente), somente leitura — vê vencimentos e pastas/links; **não** vê senhas nem observações internas. Criado na aba *Portal* de cada cliente |
 | **Mensagens** | Chat entre cada cliente (no portal) e a equipe (no painel, menu *Mensagens*): uma conversa por cliente, indicador de não lidas no menu e na aba do navegador, indicador online/offline (a equipe vê o cliente; o cliente só vê o atendente que já respondeu na conversa e enquanto ela estiver aberta), atualização automática por polling (5 s com a aba aberta). Tabela `messages`, criada sozinha no primeiro acesso |
+| **Tarefas** | Quadro Kanban (A fazer · Em andamento · Em revisão · Concluída) com arrastar-e-soltar, visão em lista, filtros por responsável/cliente/prioridade, prazo com destaque de atraso, aba *Tarefas* em cada cliente e “Minhas tarefas” no painel. O responsável recebe e-mail ao ser atribuído e um resumo diário (via `cron.php`) das tarefas atrasadas ou que vencem até amanhã. Tabela `tasks`, criada sozinha no primeiro acesso |
 | **Guia** | Página de passo a passo + tour interativo no primeiro acesso |
 
 ## Instalação na Hostinger (hPanel)

@@ -130,6 +130,7 @@
   const steps = [
     ['dashboard', 'Seu painel', 'Resumo de clientes, vencimentos e alertas recentes.'],
     ['clientes', 'Clientes', 'Cada cliente tem uma página com senhas, vencimentos e links.'],
+    ['tarefas', 'Tarefas', 'Quadro Kanban da equipe: atribua responsáveis, prazos e acompanhe o andamento.'],
     ['senhas', 'Cofre de senhas', 'Todos os acessos criptografados, com copiar e gerar senha forte.'],
     ['vencimentos', 'Vencimentos', 'Domínios, hospedagens e contas com alertas em 30, 15 e 7 dias.'],
     ['links', 'Pastas & Links', 'Drive, Canva e Google Agenda de cada cliente.'],

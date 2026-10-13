@@ -14,5 +14,7 @@ if (PHP_SAPI !== 'cli') {
     header('Content-Type: text/plain; charset=utf-8');
 }
 $r = run_alerts();
+$tk = run_task_alerts();
 audit('cron', "verificados={$r['verificados']} alertas={$r['alertas']}");
 echo date('c'), " | verificados: {$r['verificados']} | alertas: {$r['alertas']} | email: ", $r['email'] ?? '-', ' | whatsapp: ', $r['whatsapp'] ?? '-', "\n";
+echo 'tarefas: ', !empty($tk['ignorado']) ? 'resumo já enviado hoje' : "{$tk['tarefas']} tarefa(s) para {$tk['usuarios']} pessoa(s)", "\n";

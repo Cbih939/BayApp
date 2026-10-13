@@ -3,6 +3,7 @@ $me = user();
 $title = $p === 'cliente' ? 'Cliente' : $NAV[$p][0];
 $chatN = chat_unread_team();
 $due = (int) val("SELECT COUNT(*) FROM billings WHERE status = 'pendente' AND vencimento <= ?", [date('Y-m-d', strtotime('+7 day'))]);
+$taskOver = tasks_overdue_mine((int) $me['id']);
 ?><!doctype html>
 <html lang="pt-BR" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="csrf" content="<?= e(csrf_token()) ?>"><meta name="robots" content="noindex,nofollow">
@@ -21,6 +22,7 @@ $due = (int) val("SELECT COUNT(*) FROM billings WHERE status = 'pendente' AND ve
         <a href="<?= url($slug) ?>" data-tour="<?= $slug ?>" class="<?= $p === $slug || ($p === 'cliente' && $slug === 'clientes') ? 'active' : '' ?>">
           <?= icon($ico) ?><span><?= e($label) ?></span>
           <?php if ($slug === 'chat'): ?><em class="badge pulse" data-chat-badge <?= $chatN ? '' : 'hidden' ?>><?= $chatN ?></em><?php endif; ?>
+          <?php if ($slug === 'tarefas' && $taskOver): ?><em class="badge pulse" title="Tarefas suas em atraso"><?= $taskOver ?></em><?php endif; ?>
           <?php if ($slug === 'vencimentos' && $due): ?><em class="badge pulse"><?= $due ?></em><?php endif; ?></a>
       <?php endforeach; ?>
     </nav>
