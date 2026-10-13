@@ -137,6 +137,10 @@ function schema_sql(string $driver): array
             id $pk, client_id INT NOT NULL, sender VARCHAR(8) NOT NULL, user_id INT NULL, client_user_id INT NULL,
             autor VARCHAR(120) NOT NULL, corpo TEXT NOT NULL, lida_em VARCHAR(19) NULL, criado_em VARCHAR(19) NOT NULL,
             FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE){$eng}",
+        "CREATE TABLE IF NOT EXISTS chat_presence (
+            id $pk, client_id INT NOT NULL, side VARCHAR(8) NOT NULL, user_id INT NOT NULL,
+            nome VARCHAR(120) NOT NULL, seen_at VARCHAR(19) NOT NULL,
+            FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE){$eng}",
         'CREATE INDEX idx_cred_client ON credentials(client_id)',
         'CREATE INDEX idx_bill_venc ON billings(vencimento)',
         'CREATE INDEX idx_bill_client ON billings(client_id)',
@@ -145,11 +149,12 @@ function schema_sql(string $driver): array
         'CREATE INDEX idx_login_ip ON login_attempts(ip)',
         'CREATE INDEX idx_msg_client ON messages(client_id, id)',
         'CREATE INDEX idx_msg_unread ON messages(sender, lida_em)',
+        'CREATE INDEX idx_presence ON chat_presence(client_id, side, user_id)',
     ];
     return $t;
 }
 
-const SCHEMA_VERSION = '3';
+const SCHEMA_VERSION = '4';
 
 /** Atualiza instalações antigas (cria tabelas novas) uma única vez. */
 function ensure_schema(): void
