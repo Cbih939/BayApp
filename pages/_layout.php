@@ -9,7 +9,7 @@ $due = (int) val("SELECT COUNT(*) FROM billings WHERE status = 'pendente' AND ve
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png"><link rel="apple-touch-icon" href="assets/img/favicon.png">
-<link rel="stylesheet" href="assets/css/app.css">
+<link rel="stylesheet" href="<?= asset('assets/css/app.css') ?>">
 <script>try{var t=localStorage.getItem('bay-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 </head><body>
 <div class="shell">
@@ -55,5 +55,5 @@ $due = (int) val("SELECT COUNT(*) FROM billings WHERE status = 'pendente' AND ve
 <div class="tour" id="tour" hidden><div class="tour-spot" id="tourSpot"></div>
   <div class="tour-box" id="tourBox"><b id="tourTitle"></b><p id="tourText"></p>
     <div class="tour-nav"><button class="btn ghost sm" id="tourSkip">Pular</button><span id="tourStep" class="muted"></span><button class="btn primary sm" id="tourNext">Próximo</button></div></div></div>
-<script src="assets/js/app.js"></script>
+<script src="<?= asset('assets/js/app.js') ?>"></script>
 </body></html>
