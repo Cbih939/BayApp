@@ -302,6 +302,13 @@ function handle_action(string $a): string
             flash('Configurações salvas.');
             return $ret;
 
+        case 'report_whatsapp':
+            if (!whatsapp_configured()) throw new RuntimeException('Configure o WhatsApp em Configurações para enviar direto pelo app.');
+            [$ok, $det] = send_whatsapp(report_text(report_build(report_filters($_POST))));
+            audit('report_whatsapp', $ok ? 'enviado' : $det);
+            flash($ok ? 'Relatório enviado ao WhatsApp.' : "Não foi possível enviar ao WhatsApp ($det).", $ok ? 'ok' : 'err');
+            return $ret;
+
         case 'alert_test':
             require_can('settings');
             $res = [];

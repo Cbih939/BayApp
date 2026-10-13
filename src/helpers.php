@@ -89,6 +89,7 @@ const AUDIT_LABELS = [
     'portal_user_toggle' => 'Acesso do portal ativado/desativado', 'portal_user_reset' => 'Senha do portal redefinida',
     'client_save' => 'Cliente salvo', 'client_delete' => 'Cliente excluído', 'cred_save' => 'Acesso salvo', 'cred_delete' => 'Acesso excluído',
     'bill_save' => 'Vencimento salvo', 'bill_pay' => 'Vencimento pago', 'bill_delete' => 'Vencimento excluído',
+    'report_export' => 'Relatório baixado', 'report_whatsapp' => 'Relatório enviado ao WhatsApp',
 ];
 
 const ROLES = ['admin' => 'Administrador', 'designer' => 'Designer', 'dev' => 'Desenvolvedor'];
@@ -180,6 +181,8 @@ function icon(string $n, int $s = 20): string
         'help' => '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>',
         'play' => '<path d="M5 3l14 9-14 9z"/>',
         'tasks' => '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12l3 3 5-6"/>',
+        'chart' => '<path d="M3 3v18h18"/><path d="M7 15v3M12 9v9M17 5v13"/>',
+        'download' => '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
         'wallet' => '<path d="M20 12V8a2 2 0 0 0-2-2H5a2 2 0 0 1 0-4h13M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/>',
     ];
     return '<svg class="ico" width="' . $s . '" height="' . $s . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . ($i[$n] ?? '') . '</svg>';
