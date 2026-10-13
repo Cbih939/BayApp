@@ -5,6 +5,7 @@ if (!$c) { flash('Cliente não encontrado.', 'err'); redirect(url('clientes')); 
 $ret = url('cliente', ['id' => $id]);
 $creds = can('creds.view') ? rows('SELECT * FROM credentials WHERE client_id = ? ORDER BY categoria, titulo', [$id]) : [];
 $bills = can('billing.view') ? rows('SELECT b.*, ? AS cliente FROM billings b WHERE client_id = ? ORDER BY status DESC, vencimento', [$c['nome'], $id]) : [];
+$tasks = task_sort(rows(TASK_SELECT . ' WHERE t.client_id = ?', [$id]));
 $links = rows('SELECT * FROM links WHERE client_id = ? ORDER BY tipo, titulo', [$id]);
 $portal = can('clients.edit') ? rows('SELECT id, client_id, nome, email, ativo, ultimo_login FROM client_users WHERE client_id = ? ORDER BY nome', [$id]) : [];
 $portalUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? '') . rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\') . '/portal.php';
@@ -25,6 +26,7 @@ $portalUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' 
 <div class="tabs" role="tablist">
   <?php if (can('creds.view')): ?><button class="tab active" data-tab="t-cred"><?= icon('key', 16) ?> Senhas <em><?= count($creds) ?></em></button><?php endif; ?>
   <?php if (can('billing.view')): ?><button class="tab <?= can('creds.view') ? '' : 'active' ?>" data-tab="t-bill"><?= icon('calendar', 16) ?> Vencimentos <em><?= count($bills) ?></em></button><?php endif; ?>
+  <button class="tab" data-tab="t-task"><?= icon('tasks', 16) ?> Tarefas <em><?= count(array_filter($tasks, fn($t) => $t['status'] !== 'feito')) ?></em></button>
   <button class="tab <?= can('creds.view') || can('billing.view') ? '' : 'active' ?>" data-tab="t-link"><?= icon('folder', 16) ?> Pastas &amp; Links <em><?= count($links) ?></em></button>
   <?php if (can('clients.edit')): ?><button class="tab" data-tab="t-portal"><?= icon('users', 16) ?> Portal <em><?= count($portal) ?></em></button><?php endif; ?>
 </div>
@@ -41,6 +43,11 @@ $portalUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' 
   <?php if (!$bills) echo empty_state('calendar', 'Nada a vencer', 'Cadastre domínio, hospedagem, e-mail… e receba alertas de 30, 15 e 7 dias.'); ?>
   <div class="stack-cards"><?php foreach ($bills as $b) render_bill_card($b, false, $ret); ?></div>
 </section><?php endif; ?>
+<section class="tabpane" id="t-task">
+  <div class="sec-h"><h3>Tarefas</h3><button class="btn primary sm" data-open="dlg-task" data-new><?= icon('plus', 16) ?> Nova tarefa</button></div>
+  <?php if (!$tasks) echo empty_state('tasks', 'Nenhuma tarefa', 'Crie tarefas para este cliente e atribua à equipe.'); ?>
+  <div class="grid cards"><?php foreach ($tasks as $t) render_task_card($t, $ret); ?></div>
+</section>
 <section class="tabpane <?= can('creds.view') || can('billing.view') ? '' : 'active' ?>" id="t-link">
   <div class="sec-h"><h3>Pastas &amp; links</h3><?php if (can('links.edit')): ?><button class="btn primary sm" data-open="dlg-link" data-new><?= icon('plus', 16) ?> Novo link</button><?php endif; ?></div>
   <?php if (!$links) echo empty_state('folder', 'Sem links ainda', 'Adicione a pasta do Drive, o Canva e a Google Agenda deste cliente.'); ?>
@@ -69,4 +76,4 @@ $portalUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' 
   <footer class="modal-f"><button type="button" class="btn ghost" data-close>Cancelar</button><button class="btn primary">Salvar acesso</button></footer>
 </form></dialog>
 <?php endif; ?>
-<?php dlg_cred($id, $ret); dlg_bill($id, $ret); dlg_link($id, $ret); ?>
+<?php dlg_cred($id, $ret); dlg_bill($id, $ret); dlg_link($id, $ret); dlg_task($id, $ret); ?>

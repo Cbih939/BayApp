@@ -147,6 +147,45 @@ function handle_action(string $a): string
             q('DELETE FROM links WHERE id = ?', [$id]); flash('Link removido.');
             return $ret;
 
+        /* ---------------- Tarefas ---------------- */
+        case 'task_save':
+            $titulo = post('titulo');
+            if ($titulo === '') throw new RuntimeException('Informe o título da tarefa.');
+            $cid = post('client_id') === '' ? null : (int) post('client_id');
+            if ($cid !== null && !row('SELECT id FROM clients WHERE id = ?', [$cid])) throw new RuntimeException('Cliente não encontrado.');
+            $aid = post('assignee_id') === '' ? null : (int) post('assignee_id');
+            if ($aid !== null && !row('SELECT id FROM users WHERE id = ? AND ativo = 1', [$aid])) throw new RuntimeException('Responsável inválido.');
+            $prazo = post('prazo');
+            if ($prazo !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $prazo)) throw new RuntimeException('Data de prazo inválida.');
+            $status = array_key_exists(post('status'), TASK_STATUS) ? post('status') : 'a_fazer';
+            $d = ['titulo' => mb_substr($titulo, 0, 200), 'descricao' => post_or_null('descricao'), 'client_id' => $cid, 'assignee_id' => $aid,
+                'prioridade' => array_key_exists(post('prioridade'), TASK_PRIO) ? post('prioridade') : 'media',
+                'status' => $status, 'prazo' => $prazo === '' ? null : $prazo, 'atualizado_em' => now()];
+            $old = $id ? row('SELECT status, assignee_id FROM tasks WHERE id = ?', [$id]) : null;
+            if ($id && !$old) throw new RuntimeException('Tarefa não encontrada.');
+            $d['concluida_em'] = $status === 'feito' ? (($old && $old['status'] === 'feito') ? val('SELECT concluida_em FROM tasks WHERE id = ?', [$id]) : now()) : null;
+            if ($id) { update('tasks', $id, $d); flash('Tarefa atualizada.'); }
+            else { $id = insert('tasks', $d + ['criado_por' => $u['id'], 'criado_em' => now()]); flash('Tarefa criada ✅'); }
+            if ($aid && $aid !== (int) $u['id'] && (!$old || (int) $old['assignee_id'] !== $aid)) {
+                $r = row('SELECT nome, email FROM users WHERE id = ?', [$aid]);
+                if ($r && filter_var($r['email'], FILTER_VALIDATE_EMAIL)) {
+                    send_mail([$r['email']], 'Nova tarefa para você — ' . setting('empresa_nome', 'BayApp'),
+                        '<div style="font-family:Arial,sans-serif"><h2>Olá, ' . e(explode(' ', $r['nome'])[0]) . '!</h2><p>' . e($u['nome']) . ' atribuiu uma tarefa a você:</p><p><b>'
+                        . e($d['titulo']) . '</b>' . ($d['prazo'] ? '<br>Prazo: ' . fmt_date($d['prazo']) : '') . '</p></div>');
+                }
+            }
+            audit('task_save', $d['titulo']);
+            return $ret;
+
+        case 'task_move':
+            task_move_to($id, post('status'));
+            return $ret;
+
+        case 'task_delete':
+            require_can('delete');
+            q('DELETE FROM tasks WHERE id = ?', [$id]); audit('task_delete', "#$id"); flash('Tarefa excluída.');
+            return $ret;
+
         /* ---------------- Portal do cliente ---------------- */
         case 'portal_user_save':
             require_can('clients.edit');

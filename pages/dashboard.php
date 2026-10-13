@@ -8,6 +8,8 @@ $sum30 = (float) val("SELECT COALESCE(SUM(valor),0) FROM billings WHERE status='
 $upcoming = rows("SELECT b.*, c.nome AS cliente FROM billings b JOIN clients c ON c.id=b.client_id WHERE b.status='pendente' ORDER BY b.vencimento LIMIT 6");
 $recentLinks = rows('SELECT l.*, c.nome AS cliente FROM links l LEFT JOIN clients c ON c.id=l.client_id ORDER BY l.id DESC LIMIT 4');
 $recentAlerts = rows("SELECT a.*, b.descricao FROM alert_log a JOIN billings b ON b.id=a.billing_id ORDER BY a.id DESC LIMIT 5");
+$myTasks = task_sort(rows(TASK_SELECT . " WHERE t.assignee_id = ? AND t.status <> 'feito'", [$me['id']]));
+$nMyOver = count(array_filter($myTasks, fn($t) => $t['prazo'] && $t['prazo'] < $today));
 $ret = url('dashboard');
 $hour = (int) date('G');
 $greet = $hour < 12 ? 'Bom dia' : ($hour < 18 ? 'Boa tarde' : 'Boa noite');
@@ -28,6 +30,12 @@ $greet = $hour < 12 ? 'Bom dia' : ($hour < 18 ? 'Boa tarde' : 'Boa noite');
   <?php endforeach; ?>
 </section>
 
+<section class="dash-tasks">
+  <div class="sec-h"><h3>Minhas tarefas <?= $myTasks ? '<em class="muted">(' . count($myTasks) . ($nMyOver ? ", $nMyOver em atraso" : '') . ')</em>' : '' ?></h3><a href="<?= url('tarefas', ['quem' => 'eu']) ?>" class="link">Abrir quadro →</a></div>
+  <?php if (!$myTasks): echo '<p class="muted">Nenhuma tarefa em aberto para você. 🎉</p>'; endif; ?>
+  <div class="grid cards"><?php foreach (array_slice($myTasks, 0, 6) as $i => $t): ?><div class="anim-up" style="--i:<?= $i ?>"><?php render_task_card($t, $ret); ?></div><?php endforeach; ?></div>
+</section>
+
 <div class="split">
   <section>
     <div class="sec-h"><h3>Próximos vencimentos</h3><a href="<?= url('vencimentos') ?>" class="link">Ver todos →</a></div>
@@ -46,3 +54,4 @@ $greet = $hour < 12 ? 'Bom dia' : ($hour < 18 ? 'Boa tarde' : 'Boa noite');
     <?php endforeach; if (!$recentAlerts) echo '<p class="muted">Nenhum alerta enviado ainda.</p>'; ?></div>
   </section>
 </div>
+<?php dlg_task(null, $ret); ?>
