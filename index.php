@@ -10,6 +10,7 @@ $NAV = [
     'clientes'    => ['Clientes', 'briefcase', null],
     'senhas'      => ['Senhas', 'key', 'creds.view'],
     'vencimentos' => ['Vencimentos', 'calendar', 'billing.view'],
+    'chat'        => ['Mensagens', 'chat', null],
     'links'       => ['Pastas & Links', 'folder', null],
     'usuarios'    => ['Equipe', 'users', 'users'],
     'guia'        => ['Guia', 'book', null],
@@ -28,6 +29,9 @@ if (!user()) {
     require __DIR__ . '/pages/login.php';
     exit;
 }
+
+/* ---------- AJAX: chat (polling) ---------- */
+if ($p === 'chat_api') chat_api('team', null, user());
 
 /* ---------- AJAX: revelar senha ---------- */
 if ($p === 'ajax') {

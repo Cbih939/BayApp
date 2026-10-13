@@ -21,6 +21,8 @@ if (!$me) {
     exit;
 }
 
+if ($p === 'chat_api') chat_api('client', (int) $me['client_id'], $me);
+
 /* Troca de senha do próprio cliente */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -37,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect('portal.php?p=' . $p);
 }
 
-if (!in_array($p, ['inicio', 'vencimentos', 'links'], true)) $p = 'inicio';
+if (!in_array($p, ['inicio', 'vencimentos', 'links', 'chat'], true)) $p = 'inicio';
 require __DIR__ . '/pages/_partials.php';
 
 $cid = (int) $me['client_id'];
@@ -48,7 +50,8 @@ $pending = array_values(array_filter($bills, fn($b) => $b['status'] === 'pendent
 $links = rows('SELECT * FROM links WHERE client_id = ? ORDER BY tipo, titulo', [$cid]);
 $ret = 'portal.php';
 
-$tabs = ['inicio' => ['Início', 'home'], 'vencimentos' => ['Vencimentos', 'calendar'], 'links' => ['Pastas & Links', 'folder']];
+$tabs = ['inicio' => ['Início', 'home'], 'vencimentos' => ['Vencimentos', 'calendar'], 'links' => ['Pastas & Links', 'folder'], 'chat' => ['Mensagens', 'chat']];
+$chatUnread = chat_unread_client($cid);
 ob_start();
 require __DIR__ . "/pages/portal_$p.php";
 $content = ob_get_clean();

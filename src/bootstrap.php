@@ -11,5 +11,6 @@ require __DIR__ . '/db.php';
 require __DIR__ . '/crypto.php';
 require __DIR__ . '/auth.php';
 require __DIR__ . '/notify.php';
+require __DIR__ . '/chat.php';
 
 if ($CONFIG) ensure_schema();

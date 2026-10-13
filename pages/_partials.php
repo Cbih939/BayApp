@@ -163,3 +163,19 @@ function dlg_link(?int $client = null, string $ret = ''): void
   <footer class="modal-f"><button type="button" class="btn ghost" data-close>Cancelar</button><button class="btn primary">Salvar link</button></footer>
 </form></dialog>
 <?php }
+
+/** Caixa de conversa (renderizada no servidor; assets/js/chat.js faz o polling). $viewer: 'team' ou 'client'. */
+function render_chat_box(int $clientId, string $viewer, string $api, string $emptyMsg): void
+{
+    chat_mark_read($clientId, $viewer);
+    $msgs = chat_fetch($clientId);
+    ?>
+    <section class="card chat-box" id="chat" data-api="<?= e($api) ?>" data-client="<?= $clientId ?>" data-viewer="<?= e($viewer) ?>" data-empty="<?= e($emptyMsg) ?>" data-msgs="<?= e(json_encode($msgs, JSON_UNESCAPED_UNICODE)) ?>">
+      <div class="chat-log" id="chatLog" aria-live="polite"></div>
+      <form class="chat-form" id="chatForm" autocomplete="off">
+        <textarea id="chatInput" rows="1" maxlength="<?= CHAT_MAX ?>" placeholder="Escreva uma mensagem…" required></textarea>
+        <button class="btn primary" id="chatSend"><?= icon('send', 16) ?> Enviar</button>
+      </form>
+    </section>
+    <?php
+}

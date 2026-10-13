@@ -12,6 +12,7 @@ Aplicativo em **PHP 8 + MySQL** (preto, branco e roxo) para agências: cadastro 
 | **Alertas** | Cron diário envia avisos a **30, 15 e 7 dias** (uma vez por marco) por **e-mail** e **WhatsApp** |
 | **Pastas & Links** | Drive, Canva, Agenda, Docs, Figma — tipo detectado automaticamente |
 | **Portal do cliente** | `portal.php`: login próprio para clientes (vários usuários por cliente), somente leitura — vê vencimentos e pastas/links; **não** vê senhas nem observações internas. Criado na aba *Portal* de cada cliente |
+| **Mensagens** | Chat entre cada cliente (no portal) e a equipe (no painel, menu *Mensagens*): uma conversa por cliente, indicador de não lidas no menu e na aba do navegador, atualização automática por polling (5 s com a aba aberta). Tabela `messages`, criada sozinha no primeiro acesso |
 | **Guia** | Página de passo a passo + tour interativo no primeiro acesso |
 
 ## Instalação na Hostinger (hPanel)
