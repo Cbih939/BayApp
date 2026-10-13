@@ -73,6 +73,24 @@ function initials(string $name): string
 function only_digits(?string $v): string { return preg_replace('/\D+/', '', (string) $v); }
 
 /* ---------- Catálogos ---------- */
+/** Senha forte sem caracteres ambíguos. */
+function gen_password(int $len = 12): string
+{
+    $a = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    $s = '';
+    for ($i = 0; $i < $len; $i++) $s .= $a[random_int(0, strlen($a) - 1)];
+    return $s;
+}
+
+const AUDIT_LABELS = [
+    'login' => 'Login (equipe)', 'logout' => 'Saída', 'portal_login' => 'Login (portal)', 'senha_revelada' => 'Senha revelada',
+    'user_save' => 'Usuário salvo', 'user_delete' => 'Usuário excluído', 'user_toggle' => 'Usuário ativado/desativado',
+    'user_reset' => 'Senha redefinida', 'portal_user_save' => 'Acesso do portal salvo', 'portal_user_delete' => 'Acesso do portal removido',
+    'portal_user_toggle' => 'Acesso do portal ativado/desativado', 'portal_user_reset' => 'Senha do portal redefinida',
+    'client_save' => 'Cliente salvo', 'client_delete' => 'Cliente excluído', 'cred_save' => 'Acesso salvo', 'cred_delete' => 'Acesso excluído',
+    'bill_save' => 'Vencimento salvo', 'bill_pay' => 'Vencimento pago', 'bill_delete' => 'Vencimento excluído',
+];
+
 const ROLES = ['admin' => 'Administrador', 'designer' => 'Designer', 'dev' => 'Desenvolvedor'];
 
 const CRED_CATS = [

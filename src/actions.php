@@ -246,6 +246,47 @@ function handle_action(string $a): string
             q('DELETE FROM users WHERE id = ?', [$id]); audit('user_delete', "#$id"); flash('Usuário excluído.');
             return $ret;
 
+        case 'user_toggle':
+            require_can('users');
+            if ($id === (int) $u['id']) throw new RuntimeException('Você não pode desativar a si mesmo.');
+            $t = row('SELECT * FROM users WHERE id = ?', [$id]);
+            if (!$t) throw new RuntimeException('Usuário não encontrado.');
+            if ($t['ativo'] && $t['papel'] === 'admin' && (int) val("SELECT COUNT(*) FROM users WHERE papel='admin' AND ativo=1 AND id<>?", [$id]) === 0)
+                throw new RuntimeException('Mantenha pelo menos um administrador ativo.');
+            update('users', $id, ['ativo' => $t['ativo'] ? 0 : 1]);
+            audit('user_toggle', $t['email'] . ($t['ativo'] ? ' → inativo' : ' → ativo'));
+            flash($t['ativo'] ? 'Usuário desativado. Ele não consegue mais entrar.' : 'Usuário reativado.');
+            return $ret;
+
+        case 'user_reset':
+            require_can('users');
+            $t = row('SELECT * FROM users WHERE id = ?', [$id]);
+            if (!$t) throw new RuntimeException('Usuário não encontrado.');
+            $nova = gen_password();
+            update('users', $id, ['senha_hash' => password_hash($nova, PASSWORD_DEFAULT)]);
+            audit('user_reset', $t['email']);
+            flash('Nova senha de ' . $t['nome'] . ' (' . $t['email'] . '): ' . $nova . ' (anote agora, ela não será exibida novamente).', 'keep');
+            return $ret;
+
+        case 'portal_user_toggle':
+            require_can('clients.edit');
+            $t = row('SELECT * FROM client_users WHERE id = ?', [$id]);
+            if (!$t) throw new RuntimeException('Acesso não encontrado.');
+            update('client_users', $id, ['ativo' => $t['ativo'] ? 0 : 1]);
+            audit('portal_user_toggle', $t['email'] . ($t['ativo'] ? ' → inativo' : ' → ativo'));
+            flash($t['ativo'] ? 'Acesso ao portal desativado.' : 'Acesso ao portal reativado.');
+            return $ret;
+
+        case 'portal_user_reset':
+            require_can('clients.edit');
+            $t = row('SELECT * FROM client_users WHERE id = ?', [$id]);
+            if (!$t) throw new RuntimeException('Acesso não encontrado.');
+            $nova = gen_password();
+            update('client_users', $id, ['senha_hash' => password_hash($nova, PASSWORD_DEFAULT), 'ativo' => 1]);
+            audit('portal_user_reset', $t['email']);
+            flash('Nova senha do portal de ' . $t['nome'] . ' (' . $t['email'] . '): ' . $nova . ' (anote agora, ela não será exibida novamente).', 'keep');
+            return $ret;
+
         case 'pwd_change':
             $cur = (string) ($_POST['atual'] ?? ''); $new = (string) ($_POST['nova'] ?? '');
             $row = row('SELECT senha_hash FROM users WHERE id = ?', [$u['id']]);
