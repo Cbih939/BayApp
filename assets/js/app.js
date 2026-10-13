@@ -9,7 +9,8 @@
     const t = document.createElement('div'); t.className = 'toast ' + type; t.textContent = msg; $('#toasts').append(t);
     setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 400); }, 4200);
   };
-  $$('#toasts .toast').forEach((t, i) => setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 400); }, 4500 + i * 600));
+  $$('#toasts .toast.keep').forEach(t => { t.title = 'Clique para fechar'; t.style.cursor = 'pointer'; t.onclick = () => t.remove(); });
+  $$('#toasts .toast:not(.keep)').forEach((t, i) => setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 400); }, 4500 + i * 600));
 
   /* tema e menu mobile */
   $('#themeBtn')?.addEventListener('click', () => {
