@@ -113,12 +113,19 @@ function guess_link_type(string $url): string
     };
 }
 
+/** URL de um asset estático com ?v=mtime, para o navegador/CDN não servir CSS antigo após um deploy. */
+function asset(string $path): string
+{
+    $f = APP_ROOT . '/' . $path;
+    return $path . (is_file($f) ? '?v=' . filemtime($f) : '');
+}
+
 /** Logo da marca: versão branca (tema escuro) e azul-escuro (tema claro); o CSS alterna conforme o tema. */
 function brand_logo(string $alt = 'BayGroups'): string
 {
     $a = e($alt);
-    return '<img class="logo-img logo-w" src="assets/img/logo.png" alt="' . $a . '">'
-         . '<img class="logo-img logo-d" src="assets/img/logo-dark.png" alt="" aria-hidden="true">';
+    return '<img class="logo-img logo-w" width="204" height="30" src="assets/img/logo.png" alt="' . $a . '">'
+         . '<img class="logo-img logo-d" width="204" height="30" src="assets/img/logo-dark.png" alt="" aria-hidden="true">';
 }
 
 function icon(string $n, int $s = 20): string
