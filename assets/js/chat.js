@@ -48,15 +48,24 @@
 
   try { render(JSON.parse(box.dataset.msgs || '[]'), true); } catch (e) { render([], true); }
 
+  /* presença: a equipe vê o cliente; o cliente só vê o atendente que já respondeu (decidido no servidor) */
+  const setPresence = d => {
+    const el = $('#presence'); if (!el) return;
+    const team = el.dataset.viewer === 'team';
+    const on = team ? !!d.online : !!d.atendente;
+    $('.dot', el).classList.toggle('on', on);
+    $('span', el).textContent = team ? (on ? 'Cliente online' : 'Cliente offline') : (on ? d.atendente.split(' ')[0] + ' está online' : 'Equipe offline');
+  };
+
   const poll = async () => {
     if (document.hidden) return;
     try {
       const d = await getJSON(`${api}&a=poll&client_id=${client}&after=${last}`);
-      render(d.messages); setUnread(d.unread);
+      render(d.messages); setUnread(d.unread); setPresence(d);
       if (viewer === 'team') refreshList();
     } catch (e) { /* tenta de novo no próximo ciclo */ }
   };
-  setInterval(poll, POLL);
+  setInterval(poll, POLL); poll();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
 
   /* lista de conversas (equipe) */
@@ -67,10 +76,12 @@
     const cur = +list.dataset.current;
     list.replaceChildren(...d.conversas.map(c => {
       const a = document.createElement('a'); a.className = 'conv' + (c.id === cur ? ' active' : ''); a.href = `index.php?p=chat&id=${c.id}`;
+      const wrap = document.createElement('span'); wrap.className = 'avatar-wrap';
       const av = document.createElement('span'); av.className = 'avatar'; av.textContent = c.nome.split(/\s+/).slice(0, 2).map(x => x[0]).join('').toUpperCase();
+      const dot = document.createElement('i'); dot.className = 'dot' + (c.online ? ' on' : ''); dot.title = c.online ? 'Online' : 'Offline'; wrap.append(av, dot);
       const mn = document.createElement('span'); mn.className = 'conv-main';
       const b = document.createElement('b'); b.textContent = c.nome; const s = document.createElement('small'); s.textContent = c.preview; mn.append(b, s);
-      a.append(av, mn);
+      a.append(wrap, mn);
       if (c.unread && c.id !== cur) { const e = document.createElement('em'); e.className = 'badge'; e.textContent = c.unread; a.append(e); }
       return a;
     }));
@@ -88,7 +99,7 @@
       const r = await fetch(api, { method: 'POST', body: fd, credentials: 'same-origin', headers: { 'X-CSRF': csrf } });
       const d = await r.json();
       if (!r.ok) throw new Error(d.erro || 'Não foi possível enviar.');
-      input.value = ''; input.style.height = 'auto'; render(d.messages, true); setUnread(d.unread);
+      input.value = ''; input.style.height = 'auto'; render(d.messages, true); setUnread(d.unread); setPresence(d);
     } catch (err) {
       const t = document.createElement('div'); t.className = 'toast err'; t.textContent = err.message; $('#toasts')?.append(t); setTimeout(() => t.remove(), 4200);
     } finally { sendBtn.disabled = false; input.focus(); }

@@ -214,3 +214,7 @@ body.portal{min-height:100vh}
 .chat-form textarea{resize:none;max-height:140px;flex:1}
 @media (max-width:860px){.chat-layout{grid-template-columns:1fr}.chat-convs{max-height:30vh}.chat-box{height:70vh}}
 @media (max-width:760px){.pnav{gap:2px}.pnav a{white-space:nowrap;padding:8px 9px;font-size:.82rem;gap:4px}.pnav a .ico{display:none}.chat-box{height:calc(100vh - 250px);min-height:340px}}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--muted);opacity:.55;flex:none}
+.dot.on{background:var(--ok);opacity:1;box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 25%,transparent)}
+.avatar-wrap{position:relative;display:inline-flex;flex:none}.avatar-wrap .dot{position:absolute;right:-2px;bottom:-2px;width:12px;height:12px;border:2px solid var(--surface)}
+.presence{display:inline-flex;align-items:center;gap:8px;font-size:.82rem;color:var(--muted);padding:6px 12px;border:1px solid var(--border);border-radius:99px;white-space:nowrap}
