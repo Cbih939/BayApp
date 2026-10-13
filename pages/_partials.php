@@ -66,6 +66,13 @@ function delete_btn(string $action, int $id, string $ret, string $what): string
         . '<input type="hidden" name="return" value="' . e($ret) . '"><button class="icon-btn danger" title="Excluir">' . icon('trash') . '</button></form>';
 }
 
+function user_action_btn(string $action, int $id, string $ret, string $ico, string $title, string $confirm): string
+{
+    return '<form method="post" data-confirm="' . e($confirm) . '">' . csrf_field()
+        . '<input type="hidden" name="action" value="' . $action . '"><input type="hidden" name="id" value="' . $id . '">'
+        . '<input type="hidden" name="return" value="' . e($ret) . '"><button class="icon-btn" title="' . e($title) . '">' . icon($ico) . '</button></form>';
+}
+
 function render_cred_card(array $c, string $ret): void
 {
     $cat = CRED_CATS[$c['categoria']] ?? ['Outro', ''];
