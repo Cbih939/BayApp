@@ -17,6 +17,7 @@ $portalUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' 
       <?php if ($c['email']): ?><a class="chip" href="mailto:<?= e($c['email']) ?>"><?= icon('mail', 14) ?> <?= e($c['email']) ?></a><?php endif; ?>
       <?php if ($c['whatsapp'] || $c['telefone']): $w = only_digits($c['whatsapp'] ?: $c['telefone']); ?><a class="chip" target="_blank" rel="noopener" href="https://wa.me/<?= e($w) ?>"><?= icon('phone', 14) ?> <?= e($c['whatsapp'] ?: $c['telefone']) ?></a><?php endif; ?>
       <?php if ($c['site']): ?><a class="chip" target="_blank" rel="noopener noreferrer" href="<?= e($c['site']) ?>"><?= icon('external', 14) ?> site</a><?php endif; ?>
+      <a class="chip" href="<?= url('chat', ['id' => $id]) ?>"><?= icon('chat', 14) ?> mensagens</a>
       <span class="chip tag-<?= $c['status'] === 'ativo' ? 'ok' : 'paid' ?>"><?= e($c['status']) ?></span></div>
     <?php if ($c['notas']): ?><p class="note"><?= e($c['notas']) ?></p><?php endif; ?></div>
 </section>

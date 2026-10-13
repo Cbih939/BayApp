@@ -133,17 +133,23 @@ function schema_sql(string $driver): array
             senha_hash VARCHAR(255) NOT NULL, ativo INT NOT NULL DEFAULT 1,
             ultimo_login VARCHAR(19) NULL, criado_em VARCHAR(19) NOT NULL,
             FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE){$eng}",
+        "CREATE TABLE IF NOT EXISTS messages (
+            id $pk, client_id INT NOT NULL, sender VARCHAR(8) NOT NULL, user_id INT NULL, client_user_id INT NULL,
+            autor VARCHAR(120) NOT NULL, corpo TEXT NOT NULL, lida_em VARCHAR(19) NULL, criado_em VARCHAR(19) NOT NULL,
+            FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE){$eng}",
         'CREATE INDEX idx_cred_client ON credentials(client_id)',
         'CREATE INDEX idx_bill_venc ON billings(vencimento)',
         'CREATE INDEX idx_bill_client ON billings(client_id)',
         'CREATE INDEX idx_link_client ON links(client_id)',
         'CREATE INDEX idx_alert_bill ON alert_log(billing_id)',
         'CREATE INDEX idx_login_ip ON login_attempts(ip)',
+        'CREATE INDEX idx_msg_client ON messages(client_id, id)',
+        'CREATE INDEX idx_msg_unread ON messages(sender, lida_em)',
     ];
     return $t;
 }
 
-const SCHEMA_VERSION = '2';
+const SCHEMA_VERSION = '3';
 
 /** Atualiza instalações antigas (cria tabelas novas) uma única vez. */
 function ensure_schema(): void

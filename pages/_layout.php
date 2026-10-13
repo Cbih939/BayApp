@@ -1,6 +1,7 @@
 <?php
 $me = user();
 $title = $p === 'cliente' ? 'Cliente' : $NAV[$p][0];
+$chatN = chat_unread_team();
 $due = (int) val("SELECT COUNT(*) FROM billings WHERE status = 'pendente' AND vencimento <= ?", [date('Y-m-d', strtotime('+7 day'))]);
 ?><!doctype html>
 <html lang="pt-BR" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -19,6 +20,7 @@ $due = (int) val("SELECT COUNT(*) FROM billings WHERE status = 'pendente' AND ve
       <?php foreach ($NAV as $slug => [$label, $ico, $perm]): if ($perm && !can($perm)) continue; ?>
         <a href="<?= url($slug) ?>" data-tour="<?= $slug ?>" class="<?= $p === $slug || ($p === 'cliente' && $slug === 'clientes') ? 'active' : '' ?>">
           <?= icon($ico) ?><span><?= e($label) ?></span>
+          <?php if ($slug === 'chat'): ?><em class="badge pulse" data-chat-badge <?= $chatN ? '' : 'hidden' ?>><?= $chatN ?></em><?php endif; ?>
           <?php if ($slug === 'vencimentos' && $due): ?><em class="badge pulse"><?= $due ?></em><?php endif; ?></a>
       <?php endforeach; ?>
     </nav>
@@ -56,4 +58,6 @@ $due = (int) val("SELECT COUNT(*) FROM billings WHERE status = 'pendente' AND ve
   <div class="tour-box" id="tourBox"><b id="tourTitle"></b><p id="tourText"></p>
     <div class="tour-nav"><button class="btn ghost sm" id="tourSkip">Pular</button><span id="tourStep" class="muted"></span><button class="btn primary sm" id="tourNext">Próximo</button></div></div></div>
 <script src="<?= asset('assets/js/app.js') ?>"></script>
+<script>window.BAY_CHAT={api:'index.php?p=chat_api',unread:<?= $chatN ?>}</script>
+<script src="<?= asset('assets/js/chat.js') ?>"></script>
 </body></html>

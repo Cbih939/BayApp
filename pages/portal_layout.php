@@ -11,7 +11,7 @@
 <header class="ptop">
   <a class="brand" href="portal.php"><?= brand_logo($empresa) ?></a>
   <nav class="pnav"><?php foreach ($tabs as $slug => [$label, $ico]): ?>
-    <a href="portal.php?p=<?= $slug ?>" class="<?= $p === $slug ? 'active' : '' ?>"><?= icon($ico, 18) ?><span><?= e($label) ?></span></a><?php endforeach; ?></nav>
+    <a href="portal.php?p=<?= $slug ?>" class="<?= $p === $slug ? 'active' : '' ?>"><?= icon($ico, 18) ?><span><?= e($label) ?></span><?php if ($slug === 'chat'): ?><em class="badge pulse" data-chat-badge <?= $chatUnread ? '' : 'hidden' ?>><?= $chatUnread ?></em><?php endif; ?></a><?php endforeach; ?></nav>
   <div class="pme"><span class="avatar sm"><?= e(initials($me['nome'])) ?></span><b class="pname"><?= e($me['nome']) ?></b>
     <button class="icon-btn" id="themeBtn" title="Tema"><?= icon('sun') ?></button>
     <button class="icon-btn" data-open="dlg-pwd" title="Alterar senha"><?= icon('shield') ?></button>
@@ -26,4 +26,6 @@
   <footer class="modal-f"><button type="button" class="btn ghost" data-close>Cancelar</button><button class="btn primary">Alterar</button></footer>
 </form></dialog>
 <script src="<?= asset('assets/js/app.js') ?>"></script>
+<script>window.BAY_CHAT={api:'portal.php?p=chat_api',unread:<?= (int) $chatUnread ?>}</script>
+<script src="<?= asset('assets/js/chat.js') ?>"></script>
 </body></html>
