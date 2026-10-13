@@ -111,7 +111,7 @@ textarea{resize:vertical}
 .stat{display:flex;flex-direction:column;gap:6px}.stat b{font:700 2.4rem var(--display);line-height:1}.stat small{color:var(--muted)}
 .stat.alert{border-color:var(--bad)}.stat.alert b{color:var(--bad)}
 .stat-ico{display:grid;place-items:center;width:44px;height:44px;border-radius:12px;background:rgba(139,92,246,.16);color:var(--purple2);margin-bottom:8px}
-.guide .card{display:block}.guide h4{white-space:normal;margin-bottom:6px}.guide p{margin-bottom:12px}.link{color:var(--purple2);font-weight:600;font-size:.88rem}.back{display:inline-block;margin-bottom:14px}
+.grid.guide{margin-bottom:26px}.guide .card{display:block}.guide h4{white-space:normal;margin-bottom:6px}.guide p{margin-bottom:12px}.link{color:var(--purple2);font-weight:600;font-size:.88rem}.back{display:inline-block;margin-bottom:14px}
 .url{display:inline-flex;gap:6px;align-items:center;color:var(--purple2);font-size:.82rem;margin-bottom:10px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .field{margin-bottom:10px}.field>label{margin-bottom:5px;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em}
 .copyrow{display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:5px 6px 5px 12px}.copyrow code{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.copyrow .icon-btn{width:28px;height:28px;border:none}

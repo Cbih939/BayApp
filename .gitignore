@@ -1,4 +1,4 @@
-config.php
+/config.php
 storage/*
 !storage/.htaccess
 !storage/.gitkeep
