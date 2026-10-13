@@ -30,6 +30,7 @@ $ret = url('clientes');
   <div class="grid2"><label>Telefone<input name="telefone"></label><label>WhatsApp<input name="whatsapp" placeholder="5511999999999"></label></div>
   <div class="grid2"><label>Site<input name="site" placeholder="https://"></label>
     <label>Status<select name="status"><option value="ativo">Ativo</option><option value="inativo">Inativo</option></select></label></div>
+  <label>Senha do portal <span class="muted">(exige e-mail; vazio = gerar automaticamente em cliente novo, ou manter a atual ao editar)</span><div class="pwwrap"><input name="senha" type="text" class="mono" minlength="8" autocomplete="new-password"><button type="button" class="icon-btn" data-gen title="Gerar senha forte"><?= icon('dice') ?></button></div></label>
   <label>Observações<textarea name="notas" rows="3"></textarea></label>
   <footer class="modal-f"><button type="button" class="btn ghost" data-close>Cancelar</button><button class="btn primary">Salvar cliente</button></footer>
 </form></dialog>

@@ -18,25 +18,39 @@ function handle_action(string $a): string
                 'telefone' => post_or_null('telefone'), 'whatsapp' => post_or_null('whatsapp'), 'documento' => post_or_null('documento'),
                 'site' => post_or_null('site'), 'notas' => post_or_null('notas'),
                 'status' => post('status') === 'inativo' ? 'inativo' : 'ativo'];
+            $senha = (string) ($_POST['senha'] ?? '');
+            if ($senha !== '' && strlen($senha) < 8) throw new RuntimeException('A senha precisa ter ao menos 8 caracteres.');
+            $pemail = strtolower((string) ($d['email'] ?? ''));
+            $pemail = filter_var($pemail, FILTER_VALIDATE_EMAIL) ? $pemail : '';
+            if ($senha !== '' && $pemail === '') throw new RuntimeException('Informe um e-mail válido para criar o acesso ao portal.');
+            $novo = !$id;
             if ($id) { update('clients', $id, $d); flash('Cliente atualizado.'); }
             else {
                 $id = insert('clients', $d + ['criado_em' => now()]);
                 flash('Cliente cadastrado! Agora adicione senhas, vencimentos e links.');
                 $ret = url('cliente', ['id' => $id]);
-                $pemail = strtolower((string) ($d['email'] ?? ''));
-                if ($pemail !== '' && filter_var($pemail, FILTER_VALIDATE_EMAIL)) {
-                    if (row('SELECT id FROM client_users WHERE email = ?', [$pemail])) {
-                        flash('Já existe um acesso ao portal com o e-mail ' . $pemail . '. Crie outro na aba Portal.', 'warn');
-                    } else {
-                        // Gera senha forte (sem caracteres ambíguos) e cria o acesso ao portal; exibida uma única vez.
-                        $alfabeto = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-                        $gerada = '';
-                        for ($i = 0; $i < 12; $i++) $gerada .= $alfabeto[random_int(0, strlen($alfabeto) - 1)];
-                        insert('client_users', ['client_id' => $id, 'nome' => $nome, 'email' => $pemail, 'ativo' => 1,
-                            'senha_hash' => password_hash($gerada, PASSWORD_DEFAULT), 'criado_em' => now()]);
-                        flash('Acesso ao portal criado. Login: ' . $pemail . ' · Senha: ' . $gerada . ' (anote agora, ela não será exibida novamente).', 'keep');
-                    }
+            }
+            if ($pemail !== '' && ($novo || $senha !== '')) {
+                $gerada = false;
+                if ($senha === '') {
+                    // Cadastro novo sem senha informada: gera senha forte (sem caracteres ambíguos).
+                    $alfabeto = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                    for ($i = 0; $i < 12; $i++) $senha .= $alfabeto[random_int(0, strlen($alfabeto) - 1)];
+                    $gerada = true;
                 }
+                $pu = row('SELECT id FROM client_users WHERE client_id = ? AND email = ?', [$id, $pemail]);
+                if ($pu) {
+                    update('client_users', (int) $pu['id'], ['senha_hash' => password_hash($senha, PASSWORD_DEFAULT), 'ativo' => 1]);
+                    flash('Senha do portal redefinida.');
+                } elseif (row('SELECT id FROM client_users WHERE email = ?', [$pemail])) {
+                    flash('Já existe um acesso ao portal com o e-mail ' . $pemail . ' em outro cliente. Crie outro na aba Portal.', 'warn');
+                    $gerada = false;
+                } else {
+                    insert('client_users', ['client_id' => $id, 'nome' => $nome, 'email' => $pemail, 'ativo' => 1,
+                        'senha_hash' => password_hash($senha, PASSWORD_DEFAULT), 'criado_em' => now()]);
+                    flash('Acesso ao portal criado.');
+                }
+                if ($gerada) flash('Login do portal: ' . $pemail . ' · Senha: ' . $senha . ' (anote agora, ela não será exibida novamente).', 'keep');
             }
             audit('client_save', $nome);
             return $ret;
