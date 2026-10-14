@@ -50,7 +50,7 @@ $pending = array_values(array_filter($bills, fn($b) => $b['status'] === 'pendent
 $links = rows('SELECT * FROM links WHERE client_id = ? ORDER BY tipo, titulo', [$cid]);
 $ret = 'portal.php';
 
-$tabs = ['inicio' => ['Início', 'home'], 'vencimentos' => ['Vencimentos', 'calendar'], 'links' => ['Pastas & Links', 'folder'], 'chat' => ['Mensagens', 'chat']];
+$tabs = ['inicio' => ['Início', 'home'], 'vencimentos' => ['Serviços', 'wallet'], 'links' => ['Pastas & Links', 'folder'], 'chat' => ['Mensagens', 'chat']];
 $chatUnread = chat_unread_client($cid);
 ob_start();
 require __DIR__ . "/pages/portal_$p.php";

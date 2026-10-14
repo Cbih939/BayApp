@@ -60,6 +60,7 @@ $taskOver = tasks_overdue_mine((int) $me['id']);
   <div class="tour-box" id="tourBox"><b id="tourTitle"></b><p id="tourText"></p>
     <div class="tour-nav"><button class="btn ghost sm" id="tourSkip">Pular</button><span id="tourStep" class="muted"></span><button class="btn primary sm" id="tourNext">Próximo</button></div></div></div>
 <script src="<?= asset('assets/js/app.js') ?>"></script>
+<script src="<?= asset('assets/js/work.js') ?>"></script>
 <script>window.BAY_CHAT={api:'index.php?p=chat_api',unread:<?= $chatN ?>}</script>
 <script src="<?= asset('assets/js/chat.js') ?>"></script>
 </body></html>

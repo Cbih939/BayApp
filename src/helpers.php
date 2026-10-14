@@ -59,7 +59,7 @@ function add_months(string $date, int $n): string
 {
     $d = new DateTime($date);
     $day = (int) $d->format('j');
-    $d->modify('first day of this month')->modify("+$n month");
+    $d->modify('first day of this month')->modify(sprintf('%+d month', $n));
     $d->setDate((int) $d->format('Y'), (int) $d->format('n'), min($day, (int) $d->format('t')));
     return $d->format('Y-m-d');
 }
@@ -110,9 +110,33 @@ const CRED_CATS = [
 ];
 
 const BILL_TYPES = [
+    'redes_sociais' => 'Gestão de redes sociais', 'campanha' => 'Campanhas / tráfego pago', 'site' => 'Criação de site',
+    'design' => 'Design e identidade visual', 'consultoria' => 'Consultoria / mentoria',
     'dominio' => 'Domínio', 'hospedagem' => 'Hospedagem', 'email' => 'E-mail / Workspace',
-    'ssl' => 'Certificado SSL', 'ferramenta' => 'Ferramenta / Licença', 'anuncios' => 'Anúncios', 'outro' => 'Outro',
+    'ssl' => 'Certificado SSL', 'ferramenta' => 'Ferramenta / Licença', 'anuncios' => 'Anúncios (verba)', 'outro' => 'Outro',
 ];
+
+/** Agrupamento do seletor "Tipo de serviço". */
+const BILL_GROUPS = [
+    'Marketing e criação' => ['redes_sociais', 'campanha', 'anuncios', 'design', 'site', 'consultoria'],
+    'Infraestrutura' => ['dominio', 'hospedagem', 'email', 'ssl', 'ferramenta'],
+    'Outros' => ['outro'],
+];
+
+/** Periodicidade do serviço: rótulo e meses entre cobranças. */
+const REC_LABELS = ['nenhuma' => 'Pagamento único', 'mensal' => 'Ao mês', 'trimestral' => 'Ao trimestre', 'semestral' => 'Ao semestre', 'anual' => 'Ao ano'];
+const REC_MONTHS = ['mensal' => 1, 'trimestral' => 3, 'semestral' => 6, 'anual' => 12];
+
+/* Calendário de postagem */
+const POST_CHANNELS = ['instagram' => ['Instagram', 'IG'], 'facebook' => ['Facebook', 'FB'], 'tiktok' => ['TikTok', 'TT'],
+    'linkedin' => ['LinkedIn', 'IN'], 'youtube' => ['YouTube', 'YT'], 'outro' => ['Outro', '··']];
+const POST_FORMATS = ['post' => 'Post (feed)', 'carrossel' => 'Carrossel', 'reels' => 'Reels / vídeo curto', 'stories' => 'Stories', 'video' => 'Vídeo longo'];
+const POST_STATUS = ['planejado' => 'Planejado', 'aprovado' => 'Aprovado', 'publicado' => 'Publicado', 'cancelado' => 'Cancelado'];
+const MONTHS_PT = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+/** O que o pacote pode incluir por mês (os 5 primeiros são contados pelo calendário). */
+const DELIVERY_TYPES = ['post' => 'Posts (feed)', 'carrossel' => 'Carrosséis', 'reels' => 'Reels / vídeos curtos', 'stories' => 'Stories', 'video' => 'Vídeos longos',
+    'campanha' => 'Campanhas', 'reuniao' => 'Reuniões', 'relatorio' => 'Relatórios', 'outro' => 'Outro'];
 
 const LINK_TYPES = [
     'drive' => 'Google Drive', 'canva' => 'Canva', 'agenda' => 'Google Agenda',
@@ -183,6 +207,13 @@ function icon(string $n, int $s = 20): string
         'tasks' => '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12l3 3 5-6"/>',
         'chart' => '<path d="M3 3v18h18"/><path d="M7 15v3M12 9v9M17 5v13"/>',
         'download' => '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
+        'package' => '<path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
+        'cal' => '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>',
+        'link' => '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
+        'file' => '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h8"/>',
+        'copy2' => '<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16V5a2 2 0 0 1 2-2h11"/>',
+        'clock' => '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+        'chevl' => '<path d="M15 18l-6-6 6-6"/>', 'chevr' => '<path d="M9 18l6-6-6-6"/>',
         'wallet' => '<path d="M20 12V8a2 2 0 0 0-2-2H5a2 2 0 0 1 0-4h13M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/>',
     ];
     return '<svg class="ico" width="' . $s . '" height="' . $s . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . ($i[$n] ?? '') . '</svg>';

@@ -142,11 +142,37 @@ function schema_sql(string $driver): array
             nome VARCHAR(120) NOT NULL, seen_at VARCHAR(19) NOT NULL,
             FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE){$eng}",
         "CREATE TABLE IF NOT EXISTS tasks (
-            id $pk, titulo VARCHAR(200) NOT NULL, descricao TEXT NULL, client_id INT NULL, assignee_id INT NULL,
+            id $pk, titulo VARCHAR(200) NOT NULL, descricao TEXT NULL, link VARCHAR(700) NULL, client_id INT NULL, assignee_id INT NULL,
             criado_por INT NULL, prioridade VARCHAR(8) NOT NULL DEFAULT 'media', status VARCHAR(8) NOT NULL DEFAULT 'a_fazer',
             prazo VARCHAR(10) NULL, concluida_em VARCHAR(19) NULL, criado_em VARCHAR(19) NOT NULL, atualizado_em VARCHAR(19) NOT NULL,
             FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL,
             FOREIGN KEY (assignee_id) REFERENCES users(id) ON DELETE SET NULL){$eng}",
+        "CREATE TABLE IF NOT EXISTS task_items (
+            id $pk, task_id INT NOT NULL, texto VARCHAR(300) NOT NULL, feito INT NOT NULL DEFAULT 0, ordem INT NOT NULL DEFAULT 0,
+            FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE){$eng}",
+        "CREATE TABLE IF NOT EXISTS plans (
+            id $pk, nome VARCHAR(120) NOT NULL, descricao VARCHAR(300) NULL, valor DECIMAL(12,2) NULL,
+            ativo INT NOT NULL DEFAULT 1, criado_em VARCHAR(19) NOT NULL){$eng}",
+        "CREATE TABLE IF NOT EXISTS plan_items (
+            id $pk, plan_id INT NOT NULL, tipo VARCHAR(20) NOT NULL, quantidade INT NOT NULL DEFAULT 1, descricao VARCHAR(160) NULL,
+            FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE CASCADE){$eng}",
+        "CREATE TABLE IF NOT EXISTS contracts (
+            id $pk, client_id INT NOT NULL, plan_id INT NULL, inicio VARCHAR(10) NOT NULL, fim VARCHAR(10) NULL,
+            valor DECIMAL(12,2) NULL, periodicidade VARCHAR(10) NOT NULL DEFAULT 'mensal', url VARCHAR(700) NULL, notas TEXT NULL,
+            status VARCHAR(10) NOT NULL DEFAULT 'ativo', criado_em VARCHAR(19) NOT NULL,
+            FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+            FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE SET NULL){$eng}",
+        "CREATE TABLE IF NOT EXISTS posts (
+            id $pk, client_id INT NOT NULL, dia VARCHAR(10) NOT NULL, hora VARCHAR(5) NULL, canal VARCHAR(12) NOT NULL,
+            formato VARCHAR(12) NOT NULL DEFAULT 'post', titulo VARCHAR(200) NULL, legenda TEXT NULL, midia_url VARCHAR(700) NULL,
+            status VARCHAR(10) NOT NULL DEFAULT 'planejado', publicado_em VARCHAR(19) NULL, criado_por INT NULL,
+            criado_em VARCHAR(19) NOT NULL, atualizado_em VARCHAR(19) NOT NULL,
+            FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE){$eng}",
+        "CREATE TABLE IF NOT EXISTS payments (
+            id $pk, billing_id INT NOT NULL, client_id INT NOT NULL, competencia VARCHAR(7) NOT NULL, valor DECIMAL(12,2) NULL,
+            pago_em VARCHAR(19) NOT NULL, user_id INT NULL,
+            FOREIGN KEY (billing_id) REFERENCES billings(id) ON DELETE CASCADE,
+            FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE){$eng}",
         'CREATE INDEX idx_cred_client ON credentials(client_id)',
         'CREATE INDEX idx_bill_venc ON billings(vencimento)',
         'CREATE INDEX idx_bill_client ON billings(client_id)',
@@ -158,22 +184,32 @@ function schema_sql(string $driver): array
         'CREATE INDEX idx_task_assignee ON tasks(assignee_id, status)',
         'CREATE INDEX idx_task_client ON tasks(client_id)',
         'CREATE INDEX idx_presence ON chat_presence(client_id, side, user_id)',
+        'CREATE INDEX idx_titem_task ON task_items(task_id)',
+        'CREATE INDEX idx_post_client ON posts(client_id, dia)',
+        'CREATE INDEX idx_post_dia ON posts(dia)',
+        'CREATE INDEX idx_contract_client ON contracts(client_id)',
+        'CREATE INDEX idx_pay_client ON payments(client_id, competencia)',
+        'CREATE INDEX idx_pay_bill ON payments(billing_id)',
     ];
     return $t;
 }
 
-const SCHEMA_VERSION = '5';
+const SCHEMA_VERSION = '6';
 
 /** Atualiza instalações antigas (cria tabelas novas) uma única vez. */
 function ensure_schema(): void
 {
     if (setting('schema_v') === SCHEMA_VERSION) return;
     create_schema(db(), cfg('db')['driver'] ?? 'mysql');
+    if ((int) setting('schema_v', '0') < 6) backfill_payments();
     set_setting('schema_v', SCHEMA_VERSION);
 }
 
 function create_schema(PDO $pdo, string $driver): void
 {
+    // Coluna nova em instalações antigas (falha silenciosa se já existir).
+    try { $pdo->exec('ALTER TABLE tasks ADD COLUMN link VARCHAR(700) NULL'); } catch (PDOException $e) {}
+
     foreach (schema_sql($driver) as $sql) {
         try {
             $pdo->exec($sql);
