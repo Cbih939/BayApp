@@ -78,7 +78,7 @@ function mail_template(string $title, array $items): string
         $when = $d < 0 ? 'VENCIDO há ' . abs($d) . ' dia(s)' : ($d === 0 ? 'vence HOJE' : "vence em $d dia(s)");
         $rows .= '<tr><td style="padding:14px 0;border-bottom:1px solid #2a2a35">'
             . '<div style="font-weight:700;color:#fff;font-size:15px">' . e($b['descricao']) . '</div>'
-            . '<div style="color:#a1a1b5;font-size:13px">' . e($b['cliente']) . ' · ' . e(BILL_TYPES[$b['tipo']] ?? $b['tipo']) . ' · ' . fmt_money($b['valor']) . '</div>'
+            . '<div style="color:#a1a1b5;font-size:13px">' . e($b['cliente']) . ' · ' . e($b['tipo_label'] ?? (BILL_TYPES[$b['tipo']] ?? $b['tipo'])) . ' · ' . fmt_money($b['valor']) . '</div>'
             . '<div style="margin-top:6px"><span style="background:#7c3aed;color:#fff;border-radius:99px;padding:3px 10px;font-size:12px">'
             . e($when) . ' — ' . fmt_date($b['vencimento']) . '</span></div></td></tr>';
     }
@@ -90,25 +90,32 @@ function mail_template(string $title, array $items): string
 
 /**
  * Verifica vencimentos e envia alertas (30/15/7 dias) por e-mail e WhatsApp.
+ * Cobre os vencimentos internos da Bay Groups e os pagamentos dos clientes.
  * Cada marco é enviado uma única vez por vencimento/canal.
  */
 function run_alerts(bool $dry = false): array
 {
     $report = ['verificados' => 0, 'alertas' => 0, 'email' => null, 'whatsapp' => null, 'itens' => []];
-    $bills = rows("SELECT b.*, c.nome AS cliente FROM billings b JOIN clients c ON c.id = b.client_id
-                   WHERE b.status = 'pendente' ORDER BY b.vencimento");
+    // Fontes: [tabela de alertas, coluna do vencimento na tabela de alertas, linhas]
+    $sources = [
+        ['internal_alert_log', 'i', array_map(fn($b) => $b + ['cliente' => 'Bay Groups (interno)', 'tipo_label' => INTERNAL_CATS[$b['categoria']] ?? $b['categoria']],
+            rows("SELECT * FROM internal_bills WHERE status = 'pendente' ORDER BY vencimento"))],
+        ['alert_log', 'c', rows("SELECT b.*, c.nome AS cliente FROM billings b JOIN clients c ON c.id = b.client_id WHERE b.status = 'pendente' ORDER BY b.vencimento")],
+    ];
     $pend = ['email' => [], 'whatsapp' => []];
-    foreach ($bills as $b) {
-        $report['verificados']++;
-        $b['dias'] = days_until($b['vencimento']);
-        $m = marco_for($b['dias']);
-        if ($m === null) continue;
-        foreach (['email' => 'avisar_email', 'whatsapp' => 'avisar_whatsapp'] as $canal => $flag) {
-            if (!$b[$flag]) continue;
-            if ($canal === 'whatsapp' && !whatsapp_configured()) continue;
-            $done = val("SELECT COUNT(*) FROM alert_log WHERE billing_id = ? AND vencimento = ? AND marco = ? AND canal = ? AND status = 'ok'",
-                [$b['id'], $b['vencimento'], $m, $canal]);
-            if (!$done) $pend[$canal][] = $b + ['marco' => $m];
+    foreach ($sources as [$table, $src, $bills]) {
+        foreach ($bills as $b) {
+            $report['verificados']++;
+            $b['dias'] = days_until($b['vencimento']);
+            $m = marco_for($b['dias']);
+            if ($m === null) continue;
+            $col = $src === 'i' ? 'bill_id' : 'billing_id';
+            foreach (['email' => 'avisar_email', 'whatsapp' => 'avisar_whatsapp'] as $canal => $flag) {
+                if (!$b[$flag]) continue;
+                if ($canal === 'whatsapp' && !whatsapp_configured()) continue;
+                $done = val("SELECT COUNT(*) FROM $table WHERE $col = ? AND vencimento = ? AND marco = ? AND canal = ? AND status = 'ok'", [$b['id'], $b['vencimento'], $m, $canal]);
+                if (!$done) $pend[$canal][] = $b + ['marco' => $m, '_src' => $src];
+            }
         }
     }
     $report['itens'] = array_values(array_unique(array_merge(array_column($pend['email'], 'descricao'), array_column($pend['whatsapp'], 'descricao'))));
@@ -117,7 +124,8 @@ function run_alerts(bool $dry = false): array
 
     $log = function (array $items, string $canal, bool $ok, string $det) {
         foreach ($items as $b) {
-            insert('alert_log', ['billing_id' => $b['id'], 'vencimento' => $b['vencimento'], 'marco' => $b['marco'],
+            $internal = $b['_src'] === 'i';
+            insert($internal ? 'internal_alert_log' : 'alert_log', [($internal ? 'bill_id' : 'billing_id') => $b['id'], 'vencimento' => $b['vencimento'], 'marco' => $b['marco'],
                 'canal' => $canal, 'status' => $ok ? 'ok' : 'erro', 'detalhe' => $det, 'enviado_em' => now()]);
         }
     };

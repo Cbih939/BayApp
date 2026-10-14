@@ -111,7 +111,7 @@ function schema_sql(string $driver): array
             fornecedor VARCHAR(120) NULL, valor DECIMAL(12,2) NULL, vencimento VARCHAR(10) NOT NULL,
             recorrencia VARCHAR(10) NOT NULL DEFAULT 'nenhuma', status VARCHAR(10) NOT NULL DEFAULT 'pendente',
             pago_em VARCHAR(19) NULL, avisar_email INT NOT NULL DEFAULT 1, avisar_whatsapp INT NOT NULL DEFAULT 1,
-            notas TEXT NULL, criado_em VARCHAR(19) NOT NULL,
+            notas TEXT NULL, modelo VARCHAR(10) NULL, criado_em VARCHAR(19) NOT NULL,
             FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE){$eng}",
         "CREATE TABLE IF NOT EXISTS alert_log (
             id $pk, billing_id INT NOT NULL, vencimento VARCHAR(10) NOT NULL, marco INT NOT NULL,
@@ -169,8 +169,27 @@ function schema_sql(string $driver): array
             criado_em VARCHAR(19) NOT NULL, atualizado_em VARCHAR(19) NOT NULL,
             FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE){$eng}",
         "CREATE TABLE IF NOT EXISTS payments (
-            id $pk, billing_id INT NOT NULL, client_id INT NOT NULL, competencia VARCHAR(7) NOT NULL, valor DECIMAL(12,2) NULL,
+            id $pk, billing_id INT NOT NULL, client_id INT NOT NULL, competencia VARCHAR(7) NOT NULL, vencimento VARCHAR(10) NULL,
+            valor DECIMAL(12,2) NULL, pago_em VARCHAR(19) NOT NULL, user_id INT NULL,
+            FOREIGN KEY (billing_id) REFERENCES billings(id) ON DELETE CASCADE,
+            FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE){$eng}",
+        "CREATE TABLE IF NOT EXISTS internal_bills (
+            id $pk, categoria VARCHAR(20) NOT NULL DEFAULT 'outro', descricao VARCHAR(200) NOT NULL, fornecedor VARCHAR(120) NULL,
+            valor DECIMAL(12,2) NULL, vencimento VARCHAR(10) NOT NULL, recorrencia VARCHAR(10) NOT NULL DEFAULT 'nenhuma',
+            status VARCHAR(10) NOT NULL DEFAULT 'pendente', pago_em VARCHAR(19) NULL, avisar_email INT NOT NULL DEFAULT 1,
+            avisar_whatsapp INT NOT NULL DEFAULT 1, notas TEXT NULL, criado_em VARCHAR(19) NOT NULL){$eng}",
+        "CREATE TABLE IF NOT EXISTS internal_payments (
+            id $pk, bill_id INT NOT NULL, competencia VARCHAR(7) NOT NULL, vencimento VARCHAR(10) NULL, valor DECIMAL(12,2) NULL,
             pago_em VARCHAR(19) NOT NULL, user_id INT NULL,
+            FOREIGN KEY (bill_id) REFERENCES internal_bills(id) ON DELETE CASCADE){$eng}",
+        "CREATE TABLE IF NOT EXISTS internal_alert_log (
+            id $pk, bill_id INT NOT NULL, vencimento VARCHAR(10) NOT NULL, marco INT NOT NULL, canal VARCHAR(12) NOT NULL,
+            status VARCHAR(8) NOT NULL, detalhe VARCHAR(250) NULL, enviado_em VARCHAR(19) NOT NULL,
+            FOREIGN KEY (bill_id) REFERENCES internal_bills(id) ON DELETE CASCADE){$eng}",
+        "CREATE TABLE IF NOT EXISTS files (
+            id $pk, billing_id INT NOT NULL, client_id INT NOT NULL, competencia VARCHAR(7) NOT NULL, kind VARCHAR(10) NOT NULL DEFAULT 'boleto',
+            nome VARCHAR(255) NOT NULL, arquivo VARCHAR(60) NOT NULL, mime VARCHAR(100) NULL, tamanho INT NOT NULL DEFAULT 0,
+            user_id INT NULL, criado_em VARCHAR(19) NOT NULL,
             FOREIGN KEY (billing_id) REFERENCES billings(id) ON DELETE CASCADE,
             FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE){$eng}",
         'CREATE INDEX idx_cred_client ON credentials(client_id)',
@@ -185,6 +204,10 @@ function schema_sql(string $driver): array
         'CREATE INDEX idx_task_client ON tasks(client_id)',
         'CREATE INDEX idx_presence ON chat_presence(client_id, side, user_id)',
         'CREATE INDEX idx_titem_task ON task_items(task_id)',
+        'CREATE INDEX idx_files_cycle ON files(billing_id, competencia)',
+        'CREATE INDEX idx_files_client ON files(client_id)',
+        'CREATE INDEX idx_ibill_venc ON internal_bills(vencimento)',
+        'CREATE INDEX idx_ipay_bill ON internal_payments(bill_id)',
         'CREATE INDEX idx_post_client ON posts(client_id, dia)',
         'CREATE INDEX idx_post_dia ON posts(dia)',
         'CREATE INDEX idx_contract_client ON contracts(client_id)',
@@ -194,21 +217,26 @@ function schema_sql(string $driver): array
     return $t;
 }
 
-const SCHEMA_VERSION = '6';
+const SCHEMA_VERSION = '7';
 
 /** Atualiza instalações antigas (cria tabelas novas) uma única vez. */
 function ensure_schema(): void
 {
     if (setting('schema_v') === SCHEMA_VERSION) return;
     create_schema(db(), cfg('db')['driver'] ?? 'mysql');
-    if ((int) setting('schema_v', '0') < 6) backfill_payments();
+    $v = (int) setting('schema_v', '0');
+    if ($v < 6) backfill_payments();
+    if ($v < 7) backfill_payment_dates();
     set_setting('schema_v', SCHEMA_VERSION);
 }
 
 function create_schema(PDO $pdo, string $driver): void
 {
     // Coluna nova em instalações antigas (falha silenciosa se já existir).
-    try { $pdo->exec('ALTER TABLE tasks ADD COLUMN link VARCHAR(700) NULL'); } catch (PDOException $e) {}
+    foreach (['ALTER TABLE tasks ADD COLUMN link VARCHAR(700) NULL', 'ALTER TABLE billings ADD COLUMN modelo VARCHAR(10) NULL',
+        'ALTER TABLE payments ADD COLUMN vencimento VARCHAR(10) NULL'] as $alter) {
+        try { $pdo->exec($alter); } catch (PDOException $e) {}
+    }
 
     foreach (schema_sql($driver) as $sql) {
         try {

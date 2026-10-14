@@ -12,7 +12,8 @@ $NAV = [
     'senhas'      => ['Senhas', 'key', 'creds.view'],
     'tarefas'     => ['Tarefas', 'tasks', null],
     'calendario'  => ['Calendário', 'cal', null],
-    'vencimentos' => ['Serviços', 'wallet', 'billing.view'],
+    'pagamentos'  => ['Pagamentos', 'card', 'billing.view'],
+    'vencimentos' => ['Vencimentos', 'wallet', 'billing.edit'],
     'relatorios'  => ['Relatórios', 'chart', null],
     'chat'        => ['Mensagens', 'chat', null],
     'links'       => ['Pastas & Links', 'folder', null],
@@ -77,6 +78,15 @@ if ($p === 'relatorio_export') {
     exit(report_pdf($r));
 }
 
+/* ---------- Download de arquivo de pagamento (boleto, quitação…) ---------- */
+if ($p === 'download') {
+    if (!can('billing.view')) { http_response_code(403); exit('Sem permissão.'); }
+    $f = row('SELECT * FROM files WHERE id = ?', [(int) ($_GET['id'] ?? 0)]);
+    if (!$f) { http_response_code(404); exit('Arquivo não encontrado.'); }
+    audit('file_download', $f['nome']);
+    serve_file($f);
+}
+
 /* ---------- AJAX: revelar senha ---------- */
 if ($p === 'ajax') {
     header('Content-Type: application/json');
@@ -90,6 +100,11 @@ if ($p === 'ajax') {
 /* ---------- POST de ações ---------- */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $back = safe_return($_POST['return'] ?? '');
+    if (!$_POST && (int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > 0) {   // envio maior que post_max_size: o PHP descarta tudo
+        $q = parse_url((string) ($_SERVER['HTTP_REFERER'] ?? ''), PHP_URL_QUERY);
+        flash('Os arquivos passam do limite de envio do servidor (' . ini_get('post_max_size') . '). Envie menos arquivos por vez.', 'err');
+        redirect(safe_return($q ? 'index.php?' . $q : ''));
+    }
     try {
         if (!csrf_ok()) throw new RuntimeException('Sessão expirada. Recarregue a página e tente de novo.');
         $back = handle_action(post('action'));

@@ -138,6 +138,17 @@ const MONTHS_PT = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho
 const DELIVERY_TYPES = ['post' => 'Posts (feed)', 'carrossel' => 'Carrosséis', 'reels' => 'Reels / vídeos curtos', 'stories' => 'Stories', 'video' => 'Vídeos longos',
     'campanha' => 'Campanhas', 'reuniao' => 'Reuniões', 'relatorio' => 'Relatórios', 'outro' => 'Outro'];
 
+/** Vencimentos internos da Bay Groups (contas que a própria empresa paga). */
+const INTERNAL_CATS = ['hospedagem' => 'Hospedagem / servidores', 'dominio' => 'Domínios', 'ferramenta' => 'Ferramentas e licenças', 'anuncios' => 'Anúncios / marketing',
+    'imposto' => 'Impostos e taxas', 'aluguel' => 'Aluguel e contas fixas', 'equipe' => 'Equipe / prestadores', 'outro' => 'Outros'];
+
+/** Como o cliente paga: fixo (1x ao ano), variável (mês a mês, valor muda) ou pagamento único. */
+const BILL_MODELS = ['fixo' => 'Vencimento fixo (1x ao ano)', 'variavel' => 'Vencimento variável (mês a mês)', 'unico' => 'Pagamento único'];
+const BILL_MODEL_SHORT = ['fixo' => 'Fixo · 1x ao ano', 'variavel' => 'Variável · mês a mês', 'unico' => 'Pagamento único'];
+
+/** Arquivos anexados a um pagamento do cliente. */
+const FILE_KINDS = ['boleto' => 'Boleto', 'quitacao' => 'Quitação / comprovante', 'outro' => 'Outro arquivo', 'interno' => 'Interno (só a equipe vê)'];
+
 const LINK_TYPES = [
     'drive' => 'Google Drive', 'canva' => 'Canva', 'agenda' => 'Google Agenda',
     'docs' => 'Docs / Planilhas', 'figma' => 'Figma', 'outro' => 'Outro',
@@ -214,6 +225,9 @@ function icon(string $n, int $s = 20): string
         'copy2' => '<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16V5a2 2 0 0 1 2-2h11"/>',
         'clock' => '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
         'chevl' => '<path d="M15 18l-6-6 6-6"/>', 'chevr' => '<path d="M9 18l6-6-6-6"/>',
+        'card' => '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/>',
+        'clip' => '<path d="M21.4 11.1l-9.2 9.2a5.5 5.5 0 0 1-7.8-7.8l9.2-9.2a3.7 3.7 0 0 1 5.2 5.2l-9.2 9.2a1.8 1.8 0 0 1-2.6-2.6l8.5-8.5"/>',
+        'upload' => '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>',
         'wallet' => '<path d="M20 12V8a2 2 0 0 0-2-2H5a2 2 0 0 1 0-4h13M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/>',
     ];
     return '<svg class="ico" width="' . $s . '" height="' . $s . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . ($i[$n] ?? '') . '</svg>';

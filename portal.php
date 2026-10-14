@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-/** Portal do cliente: acesso somente leitura aos vencimentos e links do próprio cliente. */
+/** Portal do cliente: acesso somente leitura aos pagamentos (com boleto e quitação), pastas e links do próprio cliente. */
 require __DIR__ . '/src/bootstrap.php';
 if (!$CONFIG) redirect('index.php');
 start_session();
@@ -22,6 +22,15 @@ if (!$me) {
 }
 
 if ($p === 'chat_api') chat_api('client', (int) $me['client_id'], $me);
+if ($p === 'vencimentos') $p = 'pagamentos';   // nome antigo da aba
+
+/* Download de boleto/quitação: só arquivos do próprio cliente e que não sejam internos */
+if ($p === 'arquivo') {
+    $f = row("SELECT * FROM files WHERE id = ? AND client_id = ? AND kind <> 'interno'", [(int) ($_GET['id'] ?? 0), (int) $me['client_id']]);
+    if (!$f) { http_response_code(404); exit('Arquivo não encontrado.'); }
+    audit('portal_download', $f['nome']);
+    serve_file($f);
+}
 
 /* Troca de senha do próprio cliente */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -39,18 +48,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect('portal.php?p=' . $p);
 }
 
-if (!in_array($p, ['inicio', 'vencimentos', 'links', 'chat'], true)) $p = 'inicio';
+if (!in_array($p, ['inicio', 'pagamentos', 'links', 'chat'], true)) $p = 'inicio';
 require __DIR__ . '/pages/_partials.php';
 
 $cid = (int) $me['client_id'];
-/* Dados internos (observações, canais de alerta) nunca vão para o cliente. */
-$bills = array_map(fn($b) => ['notas' => null, 'avisar_email' => 0, 'avisar_whatsapp' => 0, 'fornecedor' => $b['fornecedor']] + $b,
-    rows('SELECT * FROM billings WHERE client_id = ? ORDER BY vencimento', [$cid]));
-$pending = array_values(array_filter($bills, fn($b) => $b['status'] === 'pendente'));
+/* Pagamentos do cliente (sem observações internas, canais de alerta nem arquivos internos). */
+$open = cycle_open_events($cid, true);
+$paid = cycle_paid_events($cid, true, null, null, 36);
 $links = rows('SELECT * FROM links WHERE client_id = ? ORDER BY tipo, titulo', [$cid]);
 $ret = 'portal.php';
 
-$tabs = ['inicio' => ['Início', 'home'], 'vencimentos' => ['Serviços', 'wallet'], 'links' => ['Pastas & Links', 'folder'], 'chat' => ['Mensagens', 'chat']];
+$tabs = ['inicio' => ['Início', 'home'], 'pagamentos' => ['Pagamentos', 'card'], 'links' => ['Pastas & Links', 'folder'], 'chat' => ['Mensagens', 'chat']];
 $chatUnread = chat_unread_client($cid);
 ob_start();
 require __DIR__ . "/pages/portal_$p.php";

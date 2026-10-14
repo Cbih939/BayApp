@@ -1,20 +1,22 @@
 <?php
 $steps = [
-  ['briefcase', 'clientes', '1. Cadastre o cliente', 'Em <b>Clientes</b> clique em “Novo cliente”. Só o nome é obrigatório. Cada cliente ganha uma página com abas de contrato, calendário, senhas, serviços, tarefas e links.'],
+  ['briefcase', 'clientes', '1. Cadastre o cliente', 'Em <b>Clientes</b> clique em “Novo cliente”. Só o nome é obrigatório. Cada cliente ganha uma página com abas de contrato, calendário, senhas, pagamentos, tarefas e links.'],
   ['package', 'pacotes', '2. Crie os pacotes', 'Em <b>Pacotes</b> defina o que cada plano garante por mês (ex.: 12 posts, 4 stories, 1 relatório). Depois vincule o pacote ao contrato do cliente.'],
-  ['file', 'clientes', '3. Registre o contrato', 'Na aba <b>Contrato &amp; pacote</b> do cliente informe início, término, valor, cobrança (ao mês, trimestre, semestre ou ano) e o link do contrato. Ali você vê também o que o cliente tem direito e quanto já foi usado no mês.'],
-  ['cal', 'calendario', '4. Planeje o calendário de postagem', 'No <b>Calendário</b> (ou na aba do cliente) clique em “Adicionar” no dia, escolha canal, formato, legenda e o link da arte (Canva/Drive). Clique no post para ler o conteúdo, clonar ou marcar como publicado.'],
-  ['key', 'senhas', '5. Guarde os acessos', 'Em “Novo acesso” escolha o tipo (Instagram, site, hospedagem…) — título e link se preenchem sozinhos. Use <b>Gerar senha</b> e <b>Colar tudo de uma vez</b> para agilizar. Senhas ficam criptografadas.'],
-  ['wallet', 'vencimentos', '6. Cadastre os serviços', 'Em <b>Serviços</b> clique em “Novo serviço”: gestão de redes sociais, campanhas, site, domínio, hospedagem… com valor, vencimento e cobrança. Ao pagar, o histórico é guardado e o próximo vencimento é criado sozinho.'],
-  ['bell', 'config', '7. Ative os alertas', 'Em <b>Configurações</b> informe e-mails e WhatsApp, crie o cron job diário na Hostinger e use “Enviar teste”. Avisos saem com <b>30, 15 e 7 dias</b> de antecedência.'],
-  ['tasks', 'tarefas', '8. Organize as tarefas', 'Crie cartões com cliente, responsável, prazo, <b>link</b> e <b>checklist</b>. Clique na tarefa para ler os detalhes e marcar os itens; arraste entre as colunas para mudar o status.'],
-  ['chart', 'relatorios', '9. Acompanhe os relatórios', 'Em <b>Relatórios</b> escolha <b>Financeiro</b> (pagamentos, previsão, início do contrato, último mês pago e próximo vencimento) ou <b>Tarefas</b>, ambos em gráficos de barras com PDF e Excel.'],
-  ['folder', 'links', '10. Centralize pastas e links', 'Cole links do Google Drive, Canva e Google Agenda. O tipo é identificado automaticamente.'],
-  ['users', 'clientes', '11. Libere o portal do cliente', 'Dentro do cliente, aba <b>Portal</b>: crie um login para ele acompanhar serviços e links em <code>portal.php</code>. Senhas e observações internas nunca aparecem.'],
-  ['users', 'usuarios', '12. Monte a equipe', 'Admin cria usuários <b>Administrador</b>, <b>Designer</b> ou <b>Desenvolvedor</b>, cada um com permissões próprias.'],
+  ['file', 'clientes', '3. Registre o contrato', 'Na aba <b>Contrato &amp; pacote</b> do cliente informe início, término, valor, cobrança e o link do contrato. Ali você vê também o que o cliente tem direito e quanto já foi usado no mês.'],
+  ['cal', 'calendario', '4. Planeje o calendário de postagem', 'No <b>Calendário</b> (ou na aba do cliente) clique em “Adicionar” no dia, escolha canal, formato, legenda e o link da arte. Clique no post para ler o conteúdo, clonar ou marcar como publicado.'],
+  ['key', 'senhas', '5. Guarde os acessos', 'Em “Novo acesso” escolha o tipo (Instagram, site, hospedagem…) — título e link se preenchem sozinhos. Senhas ficam criptografadas.'],
+  ['card', 'clientes', '6. Registre os pagamentos do cliente', 'Na aba <b>Pagamentos</b> do cliente, “Novo serviço”: escolha <b>vencimento fixo</b> (1x ao ano, ex.: domínio) ou <b>variável</b> (mês a mês, ex.: hospedagem com valor que muda). Veja o que está <b>em aberto</b> e o que já foi <b>pago</b>.'],
+  ['clip', 'pagamentos', '7. Anexe boleto e quitação', 'No <b>Calendário de pagamentos</b> (ou na aba do cliente) clique no pagamento e envie o boleto e, depois de pago, a quitação — pode enviar vários arquivos. O cliente baixa tudo no portal; arquivos “Interno” só a equipe vê.'],
+  ['wallet', 'vencimentos', '8. Controle os vencimentos da Bay Groups', 'Em <b>Vencimentos</b> ficam as contas da própria empresa (hospedagem, domínios, ferramentas, impostos…), com alertas de <b>30, 15 e 7 dias</b> por e-mail e WhatsApp.'],
+  ['bell', 'config', '9. Ative os alertas', 'Em <b>Configurações</b> informe e-mails e WhatsApp, crie o cron job diário na Hostinger e use “Enviar teste”.'],
+  ['tasks', 'tarefas', '10. Organize as tarefas', 'Crie cartões com cliente, responsável, prazo, <b>link</b> e <b>checklist</b>. Clique na tarefa para ler os detalhes, ver as <b>pastas e links do cliente</b> e marcar os itens; arraste entre as colunas para mudar o status.'],
+  ['chart', 'relatorios', '11. Acompanhe os relatórios', 'Em <b>Relatórios</b> escolha <b>Financeiro</b> (pagamentos dos clientes, vencimentos internos, início do contrato, último mês pago e próximo vencimento) ou <b>Tarefas</b>, em gráficos de barras com PDF e Excel.'],
+  ['folder', 'links', '12. Pastas, links e tarefas juntos', 'Em <b>Pastas &amp; Links</b> cada cliente mostra o Drive, o Canva e a Agenda ao lado das tarefas em aberto dele.'],
+  ['users', 'clientes', '13. Libere o portal do cliente', 'Dentro do cliente, aba <b>Portal</b>: crie um login para ele acompanhar pagamentos (com boleto e quitação) e links em <code>portal.php</code>. Senhas e observações internas nunca aparecem.'],
+  ['users', 'usuarios', '14. Monte a equipe', 'Admin cria usuários <b>Administrador</b>, <b>Designer</b> ou <b>Desenvolvedor</b>, cada um com permissões próprias.'],
 ];
 ?>
-<section class="hero anim-up"><div><p class="eyebrow">Guia de uso</p><h1>Do zero ao primeiro alerta em 12 passos</h1>
+<section class="hero anim-up"><div><p class="eyebrow">Guia de uso</p><h1>Do zero ao primeiro alerta em 14 passos</h1>
   <p class="muted">Siga a ordem abaixo ou faça o tour interativo pelo menu lateral.</p></div>
   <button class="btn primary" id="startTour2"><?= icon('play', 18) ?> Iniciar tour guiado</button></section>
 <section class="grid cards guide"><?php foreach ($steps as $i => [$ico, $to, $t, $d]): if (isset($NAV[$to]) && $NAV[$to][2] && !can($NAV[$to][2])) continue; ?>

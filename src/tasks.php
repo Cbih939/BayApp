@@ -65,6 +65,44 @@ function task_items_for(int $id): array
     return $map[$id] ?? [];
 }
 
+/** Pastas e links do cliente da tarefa (ou os links gerais, quando a tarefa não tem cliente). */
+function task_links_for(?int $cid): array
+{
+    static $map = null;
+    if ($map === null) {
+        $map = [];
+        foreach (rows('SELECT client_id, tipo, titulo, url FROM links ORDER BY tipo, titulo') as $l) {
+            $map[(int) $l['client_id']][] = ['tipo' => LINK_TYPES[$l['tipo']] ?? 'Link', 'titulo' => $l['titulo'], 'url' => $l['url']];
+        }
+    }
+    return $map[(int) $cid] ?? [];
+}
+
+/** Dados da tarefa que o modal de leitura usa (vão em data-item do cartão). */
+function task_item(array $t): array
+{
+    [$cls, $label] = task_urgency($t);
+    $item = array_intersect_key($t, array_flip(['id', 'titulo', 'descricao', 'link', 'client_id', 'assignee_id', 'prioridade', 'status', 'prazo']));
+    return $item + ['cliente' => (string) $t['cliente'], 'responsavel' => (string) $t['responsavel'], 'status_label' => TASK_STATUS[$t['status']] ?? '',
+        'prio_label' => TASK_PRIO[$t['prioridade']] ?? '', 'prazo_label' => $label, 'prazo_cls' => $cls, 'itens' => task_items_for((int) $t['id']),
+        'links' => task_links_for($t['client_id'] ? (int) $t['client_id'] : null)];
+}
+
+/** Linha compacta (usada na página de Pastas & Links): clicar abre o modal da tarefa. */
+function render_task_mini(array $t): void
+{
+    [$cls, $label] = task_urgency($t);
+    [$cd, $ct] = task_progress((int) $t['id']);
+    ?>
+    <article class="card task tmini prio-<?= e($t['prioridade']) ?>" tabindex="0" role="button" data-id="<?= (int) $t['id'] ?>" data-item="<?= e(json_encode(task_item($t), JSON_UNESCAPED_UNICODE)) ?>">
+      <h4><?= e($t['titulo']) ?></h4>
+      <div class="chips"><span class="chip"><?= e(TASK_STATUS[$t['status']] ?? '') ?></span><span class="chip tag-<?= $cls ?>"><?= icon('calendar', 12) ?> <?= e($label) ?></span>
+        <?php if ($ct): ?><span class="chip dim"><?= icon('check', 12) ?> <?= $cd ?>/<?= $ct ?></span><?php endif; ?>
+        <?php if ($t['link']): ?><span class="chip dim" title="Tem link"><?= icon('link', 12) ?></span><?php endif; ?></div>
+    </article>
+    <?php
+}
+
 /** [feitos, total] do checklist. */
 function task_progress(int $id): array
 {
@@ -106,9 +144,7 @@ function render_task_card(array $t, string $ret): void
     [$cls, $label] = task_urgency($t);
     $keys = array_keys(TASK_STATUS);
     $i = array_search($t['status'], $keys, true);
-    $item = array_intersect_key($t, array_flip(['id', 'titulo', 'descricao', 'link', 'client_id', 'assignee_id', 'prioridade', 'status', 'prazo']));
-    $item += ['cliente' => (string) $t['cliente'], 'responsavel' => (string) $t['responsavel'], 'status_label' => TASK_STATUS[$t['status']] ?? '',
-        'prio_label' => TASK_PRIO[$t['prioridade']] ?? '', 'prazo_label' => $label, 'prazo_cls' => $cls, 'itens' => task_items_for((int) $t['id'])];
+    $item = task_item($t);
     [$cd, $ct] = task_progress((int) $t['id']);
     ?>
     <article class="card task prio-<?= e($t['prioridade']) ?> <?= $t['status'] === 'feito' ? 'done' : '' ?>" draggable="true" data-id="<?= (int) $t['id'] ?>" data-item="<?= e(json_encode($item, JSON_UNESCAPED_UNICODE)) ?>" tabindex="0" role="button" aria-label="Abrir tarefa <?= e($t['titulo']) ?>">
@@ -162,6 +198,7 @@ function dlg_task_view(string $ret): void
   <header class="modal-h"><div><p class="eyebrow" id="tv-client"></p><h3 id="tv-title"></h3></div><button type="button" class="icon-btn" data-close><?= icon('x') ?></button></header>
   <div class="chips" id="tv-chips"></div>
   <a class="btn ghost sm" id="tv-link" target="_blank" rel="noopener noreferrer" hidden><?= icon('link', 15) ?> <span>Abrir link</span></a>
+  <h4 class="tv-h" id="tv-links-h" hidden>Pastas e links do cliente</h4><div class="chips tv-links" id="tv-links"></div>
   <h4 class="tv-h">Detalhes</h4><p class="tv-desc" id="tv-desc"></p>
   <h4 class="tv-h">Checklist <span class="muted" id="tv-count"></span></h4>
   <span class="bar tv-bar"><i id="tv-bar"></i></span>

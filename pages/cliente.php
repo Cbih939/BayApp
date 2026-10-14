@@ -3,8 +3,12 @@ $id = (int) ($_GET['id'] ?? 0);
 $c = row('SELECT * FROM clients WHERE id = ?', [$id]);
 if (!$c) { flash('Cliente não encontrado.', 'err'); redirect(url('clientes')); }
 $ret = url('cliente', ['id' => $id]);
+$R = fn(string $tab, array $x = []) => url('cliente', ['id' => $id, 'tab' => $tab] + $x);
 $creds = can('creds.view') ? rows('SELECT * FROM credentials WHERE client_id = ? ORDER BY categoria, titulo', [$id]) : [];
-$bills = can('billing.view') ? rows('SELECT b.*, ? AS cliente FROM billings b WHERE client_id = ? ORDER BY status DESC, vencimento', [$c['nome'], $id]) : [];
+$cycOpen = can('billing.view') ? cycle_open_events($id) : [];
+$cycPaid = can('billing.view') ? cycle_paid_events($id, false, null, null, 36) : [];
+$sub = ($_GET['sub'] ?? '') === 'cal' ? 'cal' : 'list';
+$payRet = $R('t-bill');
 $tasks = task_sort(rows(TASK_SELECT . ' WHERE t.client_id = ?', [$id]));
 $links = rows('SELECT * FROM links WHERE client_id = ? ORDER BY tipo, titulo', [$id]);
 $tabIds = ['t-plan', 't-cal', 't-cred', 't-bill', 't-task', 't-link', 't-portal'];
@@ -33,7 +37,7 @@ $portalUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' 
   <button class="tab <?= $act('t-plan') ?>" data-tab="t-plan"><?= icon('file', 16) ?> Contrato &amp; pacote</button>
   <button class="tab <?= $act('t-cal') ?>" data-tab="t-cal"><?= icon('cal', 16) ?> Calendário</button>
   <?php if (can('creds.view')): ?><button class="tab <?= $act('t-cred') ?>" data-tab="t-cred"><?= icon('key', 16) ?> Senhas <em><?= count($creds) ?></em></button><?php endif; ?>
-  <?php if (can('billing.view')): ?><button class="tab <?= $act('t-bill') ?>" data-tab="t-bill"><?= icon('wallet', 16) ?> Serviços <em><?= count($bills) ?></em></button><?php endif; ?>
+  <?php if (can('billing.view')): ?><button class="tab <?= $act('t-bill') ?>" data-tab="t-bill"><?= icon('card', 16) ?> Pagamentos <em><?= count($cycOpen) ?></em></button><?php endif; ?>
   <button class="tab <?= $act('t-task') ?>" data-tab="t-task"><?= icon('tasks', 16) ?> Tarefas <em><?= count(array_filter($tasks, fn($t) => $t['status'] !== 'feito')) ?></em></button>
   <button class="tab <?= $act('t-link') ?>" data-tab="t-link"><?= icon('folder', 16) ?> Pastas &amp; Links <em><?= count($links) ?></em></button>
   <?php if (can('clients.edit')): ?><button class="tab <?= $act('t-portal') ?>" data-tab="t-portal"><?= icon('users', 16) ?> Portal <em><?= count($portal) ?></em></button><?php endif; ?>
@@ -55,7 +59,7 @@ $portalUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' 
           <?php if ($contract['notas']): ?><p class="note"><?= e($contract['notas']) ?></p><?php endif; ?>
           <div class="chips"><?php if ($contract['url']): ?><a class="btn ghost sm" href="<?= e($contract['url']) ?>" target="_blank" rel="noopener noreferrer"><?= icon('file', 15) ?> Abrir contrato</a><?php else: ?><span class="chip dim">sem link do contrato</span><?php endif; ?></div>
           <?php if (can('clients.edit')): ?><div class="card-actions row"><button type="button" class="icon-btn" data-edit="dlg-contract" title="Editar contrato"><?= icon('edit') ?></button>
-            <?php if (can('delete')) echo delete_btn('contract_delete', (int) $contract['id'], $ret, 'este contrato'); ?></div><?php endif; ?>
+            <?php if (can('delete')) echo delete_btn('contract_delete', (int) $contract['id'], $R('t-plan'), 'este contrato'); ?></div><?php endif; ?>
         </div>
       <?php else: echo empty_state('file', 'Nenhum contrato em vigor', 'Cadastre o contrato com início, pacote, valor e o link do documento (Drive).'); endif; ?>
     </div>
@@ -74,7 +78,7 @@ $portalUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' 
       <article class="card tilt inactive" data-item="<?= e(json_encode($k, JSON_UNESCAPED_UNICODE)) ?>"><h4><?= e($k['plano'] ?: 'Sem pacote') ?></h4>
         <p class="muted"><?= fmt_date($k['inicio']) ?> → <?= $k['fim'] ? fmt_date($k['fim']) : '—' ?> · <?= e($k['status']) ?></p>
         <?php if (can('clients.edit')): ?><div class="card-actions row"><button type="button" class="icon-btn" data-edit="dlg-contract" title="Editar"><?= icon('edit') ?></button>
-          <?php if (can('delete')) echo delete_btn('contract_delete', (int) $k['id'], $ret, 'este contrato'); ?></div><?php endif; ?></article>
+          <?php if (can('delete')) echo delete_btn('contract_delete', (int) $k['id'], $R('t-plan'), 'este contrato'); ?></div><?php endif; ?></article>
     <?php endforeach; ?></div><?php endif; ?>
 </section>
 
@@ -86,23 +90,33 @@ $portalUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' 
 <section class="tabpane <?= $act('t-cred') ?>" id="t-cred">
   <div class="sec-h"><h3>Senhas e acessos</h3><?php if (can('creds.edit')): ?><button class="btn primary sm" data-open="dlg-cred" data-new><?= icon('plus', 16) ?> Novo acesso</button><?php endif; ?></div>
   <?php if (!$creds) echo empty_state('key', 'Nenhum acesso guardado', 'Guarde logins de redes sociais, sites, hospedagem e e-mails com criptografia.'); ?>
-  <div class="grid cards"><?php foreach ($creds as $i => $x): ?><div class="anim-up" style="--i:<?= min($i, 10) ?>"><?php render_cred_card($x, $ret); ?></div><?php endforeach; ?></div>
+  <div class="grid cards"><?php foreach ($creds as $i => $x): ?><div class="anim-up" style="--i:<?= min($i, 10) ?>"><?php render_cred_card($x, $R('t-cred')); ?></div><?php endforeach; ?></div>
 </section><?php endif; ?>
 <?php if (can('billing.view')): ?>
 <section class="tabpane <?= $act('t-bill') ?>" id="t-bill">
-  <div class="sec-h"><h3>Serviços</h3><?php if (can('billing.edit')): ?><button class="btn primary sm" data-open="dlg-bill" data-new><?= icon('plus', 16) ?> Novo serviço</button><?php endif; ?></div>
-  <?php if (!$bills) echo empty_state('wallet', 'Nenhum serviço cadastrado', 'Cadastre gestão de redes sociais, campanhas, domínio, hospedagem… e receba alertas de 30, 15 e 7 dias.'); ?>
-  <div class="stack-cards"><?php foreach ($bills as $b) render_bill_card($b, false, $ret); ?></div>
+  <div class="sec-h"><div><h3>Pagamentos do cliente</h3><p class="muted">Vencimento <b>fixo</b> (1x ao ano) e <b>variável</b> (mês a mês): hospedagem, domínio e outros serviços. Anexe o boleto e a quitação em cada pagamento — o cliente vê no portal.</p></div>
+    <?php if (can('billing.edit')): ?><button class="btn primary sm" data-open="dlg-bill" data-new><?= icon('plus', 16) ?> Novo serviço</button><?php endif; ?></div>
+  <div class="seg sub-toggle"><button type="button" class="pill <?= $sub === 'list' ? 'active' : '' ?>" data-sub="list"><?= icon('tasks', 15) ?> Lista</button>
+    <button type="button" class="pill <?= $sub === 'cal' ? 'active' : '' ?>" data-sub="cal"><?= icon('cal', 15) ?> Calendário de pagamentos</button></div>
+  <div class="sub-pane" data-pane="list" <?= $sub === 'list' ? '' : 'hidden' ?>>
+    <div class="sec-h"><h3 class="grp tag-d15">Em aberto <em><?= count($cycOpen) ?></em></h3></div>
+    <?php if (!$cycOpen) echo empty_state('card', 'Nada em aberto', 'Cadastre os serviços do cliente (hospedagem, domínio, redes sociais…) com o tipo de vencimento.'); ?>
+    <div class="grid cards wide"><?php foreach ($cycOpen as $i => $ev): ?><div class="anim-up" style="--i:<?= min($i, 8) ?>"><?php render_cycle_card($ev, $payRet); ?></div><?php endforeach; ?></div>
+    <div class="sec-h"><h3 class="grp tag-paid">Pagos <em><?= count($cycPaid) ?></em></h3></div>
+    <?php if (!$cycPaid) echo '<p class="muted">Nenhum pagamento registrado ainda.</p>'; ?>
+    <div class="grid cards wide"><?php foreach ($cycPaid as $i => $ev): ?><div class="anim-up" style="--i:<?= min($i, 8) ?>"><?php render_cycle_card($ev, $payRet); ?></div><?php endforeach; ?></div>
+  </div>
+  <div class="sub-pane" data-pane="cal" <?= $sub === 'cal' ? '' : 'hidden' ?>><?php $calPayRet = render_paycal($id, ['p' => 'cliente', 'id' => $id, 'tab' => 't-bill', 'sub' => 'cal']); ?></div>
 </section><?php endif; ?>
 <section class="tabpane <?= $act('t-task') ?>" id="t-task">
   <div class="sec-h"><h3>Tarefas</h3><button class="btn primary sm" data-open="dlg-task" data-new><?= icon('plus', 16) ?> Nova tarefa</button></div>
   <?php if (!$tasks) echo empty_state('tasks', 'Nenhuma tarefa', 'Crie tarefas para este cliente e atribua à equipe.'); ?>
-  <div class="grid cards"><?php foreach ($tasks as $t) render_task_card($t, $ret); ?></div>
+  <div class="grid cards"><?php foreach ($tasks as $t) render_task_card($t, $R('t-task')); ?></div>
 </section>
 <section class="tabpane <?= $act('t-link') ?>" id="t-link">
   <div class="sec-h"><h3>Pastas &amp; links</h3><?php if (can('links.edit')): ?><button class="btn primary sm" data-open="dlg-link" data-new><?= icon('plus', 16) ?> Novo link</button><?php endif; ?></div>
   <?php if (!$links) echo empty_state('folder', 'Sem links ainda', 'Adicione a pasta do Drive, o Canva e a Google Agenda deste cliente.'); ?>
-  <div class="grid cards"><?php foreach ($links as $l) render_link_card($l, $ret); ?></div>
+  <div class="grid cards"><?php foreach ($links as $l) render_link_card($l, $R('t-link')); ?></div>
 </section>
 <?php if (can('clients.edit')): ?>
 <section class="tabpane <?= $act('t-portal') ?>" id="t-portal">
@@ -115,11 +129,11 @@ $portalUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' 
       <header><span class="avatar"><?= e(initials($pu['nome'])) ?></span><div><h4><?= e($pu['nome']) ?></h4><p class="muted"><?= e($pu['email']) ?></p></div></header>
       <div class="chips"><span class="chip dim">último acesso: <?= $pu['ultimo_login'] ? ago($pu['ultimo_login']) : 'nunca' ?></span><?php if (!$pu['ativo']): ?><span class="chip">inativo</span><?php endif; ?></div>
       <div class="card-actions row"><button type="button" class="icon-btn" data-edit="dlg-portal" title="Editar / redefinir senha"><?= icon('edit') ?></button>
-        <?php if (can('delete')) echo delete_btn('portal_user_delete', (int) $pu['id'], $ret, 'este acesso ao portal'); ?></div>
+        <?php if (can('delete')) echo delete_btn('portal_user_delete', (int) $pu['id'], $R('t-portal'), 'este acesso ao portal'); ?></div>
     </article><?php endforeach; ?></div>
 </section>
 <dialog id="dlg-portal" class="modal"><form method="post" class="stack" autocomplete="off"><?= csrf_field() ?>
-  <input type="hidden" name="action" value="portal_user_save"><input type="hidden" name="id" value=""><input type="hidden" name="client_id" value="<?= $id ?>"><input type="hidden" name="return" value="<?= e($ret) ?>">
+  <input type="hidden" name="action" value="portal_user_save"><input type="hidden" name="id" value=""><input type="hidden" name="client_id" value="<?= $id ?>"><input type="hidden" name="return" value="<?= e($R('t-portal')) ?>">
   <header class="modal-h"><h3 data-title="Novo acesso ao portal|Editar acesso ao portal">Novo acesso ao portal</h3><button type="button" class="icon-btn" data-close><?= icon('x') ?></button></header>
   <div class="grid2"><label>Nome<input name="nome" required value=""></label><label>E-mail (login)<input type="email" name="email" required></label></div>
   <label>Senha <span class="muted" data-keep hidden>(vazio = manter)</span><div class="pwwrap"><input name="senha" type="text" class="mono" minlength="8" autocomplete="new-password"><button type="button" class="icon-btn" data-gen title="Gerar senha forte"><?= icon('dice') ?></button></div></label>
@@ -129,7 +143,7 @@ $portalUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' 
 <?php endif; ?>
 <?php if (can('clients.edit')): ?>
 <dialog id="dlg-contract" class="modal"><form method="post" class="stack"><?= csrf_field() ?>
-  <input type="hidden" name="action" value="contract_save"><input type="hidden" name="id" value=""><input type="hidden" name="client_id" value="<?= $id ?>"><input type="hidden" name="return" value="<?= e($ret) ?>">
+  <input type="hidden" name="action" value="contract_save"><input type="hidden" name="id" value=""><input type="hidden" name="client_id" value="<?= $id ?>"><input type="hidden" name="return" value="<?= e($R('t-plan')) ?>">
   <header class="modal-h"><h3 data-title="Novo contrato|Editar contrato">Novo contrato</h3><button type="button" class="icon-btn" data-close><?= icon('x') ?></button></header>
   <label>Pacote<select name="plan_id"><option value="">— Sem pacote —</option><?php foreach (rows('SELECT id, nome FROM plans WHERE ativo = 1 ORDER BY nome') as $pl): ?><option value="<?= $pl['id'] ?>"><?= e($pl['nome']) ?></option><?php endforeach; ?></select></label>
   <div class="grid2"><label>Início do contrato<input type="date" name="inicio" required></label><label>Término <small class="muted">(vazio = indeterminado)</small><input type="date" name="fim"></label></div>
@@ -142,4 +156,5 @@ $portalUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' 
   <footer class="modal-f"><button type="button" class="btn ghost" data-close>Cancelar</button><button class="btn primary">Salvar contrato</button></footer>
 </form></dialog>
 <?php endif; ?>
-<?php dlg_cred($id, $ret); dlg_bill($id, $ret); dlg_link($id, $ret); dlg_task($id, $ret); dlg_task_view($ret); calendar_dialogs($id, $calRet); ?>
+<?php dlg_cred($id, $R('t-cred')); dlg_bill($id, $sub === 'cal' ? ($calPayRet ?? $payRet) : $payRet); dlg_link($id, $R('t-link')); dlg_task($id, $R('t-task')); dlg_task_view($R('t-task')); calendar_dialogs($id, $calRet);
+if (can('billing.view')) pay_dialogs($sub === 'cal' ? ($calPayRet ?? $payRet) : $payRet); ?>

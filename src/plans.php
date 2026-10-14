@@ -74,7 +74,7 @@ function render_usage(array $usage): void
 function record_payment(array $b, ?int $uid): void
 {
     insert('payments', ['billing_id' => $b['id'], 'client_id' => $b['client_id'], 'competencia' => substr($b['vencimento'], 0, 7),
-        'valor' => $b['valor'], 'pago_em' => now(), 'user_id' => $uid]);
+        'vencimento' => $b['vencimento'], 'valor' => $b['valor'], 'pago_em' => now(), 'user_id' => $uid]);
 }
 
 /** Datas de vencimento de um serviço pendente dentro de [from, to], projetando as recorrências. */
@@ -98,7 +98,7 @@ function backfill_payments(): void
         if (val('SELECT COUNT(*) FROM payments WHERE billing_id = ?', [$b['id']])) continue;
         $step = REC_MONTHS[$b['recorrencia']] ?? 0;
         $comp = $step ? add_months($b['vencimento'], -$step) : $b['vencimento'];
-        insert('payments', ['billing_id' => $b['id'], 'client_id' => $b['client_id'], 'competencia' => substr($comp, 0, 7),
+        insert('payments', ['billing_id' => $b['id'], 'client_id' => $b['client_id'], 'competencia' => substr($comp, 0, 7), 'vencimento' => $comp,
             'valor' => $b['valor'], 'pago_em' => $b['pago_em'], 'user_id' => null]);
     }
 }
@@ -113,4 +113,13 @@ function contract_age(string $start): string
     if ($d->m) $parts[] = $d->m . ($d->m > 1 ? ' meses' : ' mês');
     if (!$parts) return $d->d . ($d->d === 1 ? ' dia' : ' dias');
     return implode(' e ', $parts);
+}
+
+/** Pagamentos antigos sem a data do vencimento: usa o dia do vencimento do serviço dentro da competência. */
+function backfill_payment_dates(): void
+{
+    foreach (rows('SELECT p.id, p.competencia, b.vencimento FROM payments p JOIN billings b ON b.id = p.billing_id WHERE p.vencimento IS NULL') as $r) {
+        $dim = (int) date('t', strtotime($r['competencia'] . '-01'));
+        update('payments', (int) $r['id'], ['vencimento' => $r['competencia'] . '-' . sprintf('%02d', min((int) substr($r['vencimento'], 8, 2), $dim))]);
+    }
 }

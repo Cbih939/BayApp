@@ -70,28 +70,44 @@ function report_finance(array $f, array &$r): void
     $kp = rows("SELECT valor, periodicidade FROM contracts WHERE status = 'ativo' AND (fim IS NULL OR fim >= ?)" . ($cid ? ' AND client_id = ?' : ''), [$today, ...$bp]);
     $mrr = array_sum(array_map(fn($k) => (float) $k['valor'] / (REC_MONTHS[$k['periodicidade']] ?? 1), $kp));
 
-    $r['kpis'][] = ['A vencer no período', fmt_money($due), count($occ) . ' vencimento(s)'];
-    $r['kpis'][] = ['Pago no período', fmt_money(array_sum(array_map(fn($p) => (float) $p['valor'], $paid))), count($paid) . ' pagamento(s)'];
-    $r['kpis'][] = ['Em atraso (hoje)', fmt_money(array_sum(array_map(fn($b) => (float) $b['valor'], $overdue))), count($overdue) . ' serviço(s)'];
+    $r['kpis'][] = ['Clientes: a vencer no período', fmt_money($due), count($occ) . ' vencimento(s)'];
+    $r['kpis'][] = ['Clientes: pago no período', fmt_money(array_sum(array_map(fn($p) => (float) $p['valor'], $paid))), count($paid) . ' pagamento(s)'];
+    $r['kpis'][] = ['Clientes: em atraso (hoje)', fmt_money(array_sum(array_map(fn($b) => (float) $b['valor'], $overdue))), count($overdue) . ' serviço(s)'];
     $r['kpis'][] = ['Contratos ativos', (string) count($kp), 'valor mensal: ' . fmt_money($mrr)];
     if (!$cid) $r['kpis'][] = ['Clientes ativos', (string) (int) val("SELECT COUNT(*) FROM clients WHERE status = 'ativo'"), (int) val('SELECT COUNT(*) FROM clients WHERE criado_em BETWEEN ? AND ?', [$fromT, $toT]) . ' novo(s) no período'];
 
     $byM = array_fill_keys($months, 0.0);
     foreach ($paid as $p) { $m = substr($p['pago_em'], 0, 7); if (isset($byM[$m])) $byM[$m] += (float) $p['valor']; }
-    $r['charts'][] = ['Pago por mês', 'cols', array_combine(array_map('month_short', array_keys($byM)), array_values($byM)), true];
+    $r['charts'][] = ['Pagamentos de clientes — pagos por mês', 'cols', array_combine(array_map('month_short', array_keys($byM)), array_values($byM)), true];
     $dueM = array_fill_keys($months, 0.0);
     foreach ($occ as [$b, $d]) { $m = substr($d, 0, 7); if (isset($dueM[$m])) $dueM[$m] += (float) $b['valor']; }
-    $r['charts'][] = ['A pagar por mês (previsto)', 'cols', array_combine(array_map('month_short', array_keys($dueM)), array_values($dueM)), true];
+    $r['charts'][] = ['Pagamentos de clientes — em aberto por mês (previsto)', 'cols', array_combine(array_map('month_short', array_keys($dueM)), array_values($dueM)), true];
 
     $byType = [];
     foreach ($occ as [$b]) { $k = BILL_TYPES[$b['tipo']] ?? $b['tipo']; $byType[$k] = ($byType[$k] ?? 0) + (float) $b['valor']; }
     arsort($byType);
-    $r['charts'][] = ['A pagar por tipo de serviço', 'bar', $byType, true];
+    $r['charts'][] = ['Em aberto por tipo de serviço', 'bar', $byType, true];
     if (!$cid) {
         $top = [];
         foreach ($occ as [$b]) $top[$b['cliente']] = ($top[$b['cliente']] ?? 0) + (float) $b['valor'];
         arsort($top);
-        $r['charts'][] = ['Clientes com maior valor a pagar', 'bar', array_slice($top, 0, 8, true), true];
+        $r['charts'][] = ['Clientes com maior valor em aberto', 'bar', array_slice($top, 0, 8, true), true];
+    }
+
+    // Vencimentos internos da Bay Groups (só para quem gerencia): contas que a empresa paga
+    if (!$cid && can('billing.edit')) {
+        $ib = rows("SELECT * FROM internal_bills WHERE status = 'pendente'");
+        $iocc = [];
+        foreach ($ib as $b) foreach (bill_occurrences($b, $from, $to) as $d) $iocc[] = [$b, $d];
+        $ipaid = rows('SELECT p.*, b.descricao, b.categoria FROM internal_payments p JOIN internal_bills b ON b.id = p.bill_id WHERE p.pago_em BETWEEN ? AND ? ORDER BY p.pago_em', [$fromT, $toT]);
+        $r['kpis'][] = ['Internos: a pagar no período', fmt_money(array_sum(array_map(fn($o) => (float) $o[0]['valor'], $iocc))), count($iocc) . ' vencimento(s)'];
+        $r['kpis'][] = ['Internos: pago no período', fmt_money(array_sum(array_map(fn($p) => (float) $p['valor'], $ipaid))), count($ipaid) . ' pagamento(s)'];
+        $iM = array_fill_keys($months, 0.0);
+        foreach ($iocc as [$b, $d]) { $m = substr($d, 0, 7); if (isset($iM[$m])) $iM[$m] += (float) $b['valor']; }
+        $r['charts'][] = ['Vencimentos internos da Bay Groups — a pagar por mês', 'cols', array_combine(array_map('month_short', array_keys($iM)), array_values($iM)), true];
+        usort($iocc, fn($a, $b) => strcmp($a[1], $b[1]));
+        $r['tables'][] = ['Vencimentos internos a pagar no período', ['Vencimento', 'Categoria', 'Descrição', 'Valor', 'Situação'],
+            array_map(fn($o) => [fmt_date($o[1]), INTERNAL_CATS[$o[0]['categoria']] ?? $o[0]['categoria'], $o[0]['descricao'], fmt_money($o[0]['valor']), $o[1] < $today ? 'Em atraso' : 'Pendente'], $iocc), [58, 120, 170, 70, 80]];
     }
 
     // Situação por cliente: início do contrato, último mês pago e próximo vencimento
@@ -107,11 +123,11 @@ function report_finance(array $f, array &$r): void
     }
     $r['tables'][] = ['Contrato e situação dos pagamentos por cliente', ['Cliente', 'Contrato desde', 'Pacote', 'Último mês pago', 'Próximo vencimento', 'Situação'], $sit, [105, 62, 80, 82, 100, 68]];
 
-    $r['tables'][] = ['Pagamentos do período', ['Pago em', 'Cliente', 'Serviço', 'Competência', 'Valor'],
+    $r['tables'][] = ['Pagamentos de clientes recebidos no período', ['Pago em', 'Cliente', 'Serviço', 'Competência', 'Valor'],
         array_map(fn($p) => [fmt_date(substr($p['pago_em'], 0, 10)), $p['cliente'], $p['descricao'], month_label($p['competencia']), fmt_money($p['valor'])], $paid), [58, 110, 150, 85, 70]];
 
     usort($occ, fn($a, $b) => strcmp($a[1], $b[1]));
-    $r['tables'][] = ['Serviços a vencer no período', ['Vencimento', 'Cliente', 'Serviço', 'Tipo', 'Valor', 'Situação'],
+    $r['tables'][] = ['Pagamentos de clientes a vencer no período', ['Vencimento', 'Cliente', 'Serviço', 'Tipo', 'Valor', 'Situação'],
         array_map(fn($o) => [fmt_date($o[1]), $o[0]['cliente'], $o[0]['descricao'], BILL_TYPES[$o[0]['tipo']] ?? $o[0]['tipo'], fmt_money($o[0]['valor']),
             $o[1] < $today ? 'Em atraso' : 'Pendente'], $occ), [58, 90, 150, 70, 62, 85]];
 }

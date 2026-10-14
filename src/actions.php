@@ -57,6 +57,7 @@ function handle_action(string $a): string
 
         case 'client_delete':
             require_can('delete');
+            files_unlink(rows('SELECT arquivo FROM files WHERE client_id = ?', [$id]));
             q('DELETE FROM clients WHERE id = ?', [$id]);
             audit('client_delete', "#$id"); flash('Cliente excluído com todos os dados vinculados.');
             return url('clientes');
@@ -94,10 +95,12 @@ function handle_action(string $a): string
             $venc = post('vencimento');
             if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $venc)) throw new RuntimeException('Informe a data de vencimento.');
             $tipo = array_key_exists(post('tipo'), BILL_TYPES) ? post('tipo') : 'outro';
-            $rec = array_key_exists(post('recorrencia'), REC_LABELS) ? post('recorrencia') : 'nenhuma';
+            $model = array_key_exists(post('modelo'), BILL_MODELS) ? post('modelo') : 'fixo';
+            $posted = post('recorrencia');   // só vem preenchido ao editar registros antigos (ex.: trimestral)
+            $rec = match ($model) { 'variavel' => 'mensal', 'unico' => 'nenhuma', default => isset(REC_MONTHS[$posted]) ? $posted : 'anual' };
             $valor = parse_money(post('valor'));
             $d = ['client_id' => $cid, 'tipo' => $tipo, 'descricao' => post('descricao') ?: BILL_TYPES[$tipo],
-                'fornecedor' => post_or_null('fornecedor'), 'valor' => $valor, 'vencimento' => $venc, 'recorrencia' => $rec,
+                'fornecedor' => post_or_null('fornecedor'), 'valor' => $valor, 'vencimento' => $venc, 'recorrencia' => $rec, 'modelo' => $model,
                 'avisar_email' => isset($_POST['avisar_email']) ? 1 : 0, 'avisar_whatsapp' => isset($_POST['avisar_whatsapp']) ? 1 : 0,
                 'notas' => post_or_null('notas')];
             if ($id) { update('billings', $id, $d); flash('Serviço atualizado.'); }
@@ -116,8 +119,10 @@ function handle_action(string $a): string
                 flash('Marcado como pago ✅');
             } else {
                 $next = add_months($b['vencimento'], REC_MONTHS[$b['recorrencia']]);
-                update('billings', $id, ['vencimento' => $next, 'pago_em' => now()]);
-                flash('Pago! Próximo vencimento: ' . fmt_date($next) . ' ✅');
+                $upd = ['vencimento' => $next, 'pago_em' => now()];
+                if (bill_model($b) === 'variavel') $upd['valor'] = null;   // o valor muda a cada mês: informar de novo
+                update('billings', $id, $upd);
+                flash('Pago! Próximo vencimento: ' . fmt_date($next) . (array_key_exists('valor', $upd) ? ' — informe o valor do próximo mês ✅' : ' ✅'));
             }
             audit('bill_pay', $b['descricao']);
             return $ret;
@@ -131,7 +136,72 @@ function handle_action(string $a): string
 
         case 'bill_delete':
             require_can('delete');
+            files_unlink(rows('SELECT arquivo FROM files WHERE billing_id = ?', [$id]));
             q('DELETE FROM billings WHERE id = ?', [$id]); audit('bill_delete', "#$id"); flash('Serviço excluído.');
+            return $ret;
+
+        /* ---------------- Arquivos do pagamento (boleto, quitação…) ---------------- */
+        case 'file_upload':
+            require_can('billing.edit');
+            $bid = (int) post('billing_id'); $comp = post('competencia');
+            $b = row('SELECT id, client_id FROM billings WHERE id = ?', [$bid]);
+            if (!$b) throw new RuntimeException('Serviço não encontrado.');
+            if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $comp)) throw new RuntimeException('Competência inválida.');
+            $kind = array_key_exists(post('kind'), FILE_KINDS) ? post('kind') : 'boleto';
+            [$n, $errs] = save_uploads(['billing_id' => $bid, 'client_id' => (int) $b['client_id'], 'competencia' => $comp], $kind, (int) $u['id']);
+            audit('file_upload', "$n arquivo(s) · serviço #$bid · $comp");
+            if ($n) flash("$n arquivo(s) enviado(s) ✅" . ($errs ? ' — recusado(s): ' . implode('; ', $errs) : ''));
+            else flash(implode('; ', $errs) ?: 'Nenhum arquivo foi enviado.', 'err');
+            return $ret;
+
+        case 'file_delete':
+            require_can('billing.edit');
+            $f = row('SELECT id, arquivo, nome FROM files WHERE id = ?', [$id]);
+            if (!$f) throw new RuntimeException('Arquivo não encontrado.');
+            files_unlink([$f]); q('DELETE FROM files WHERE id = ?', [$id]); audit('file_delete', $f['nome']); flash('Arquivo removido.');
+            return $ret;
+
+        /* ---------------- Vencimentos internos da Bay Groups ---------------- */
+        case 'ibill_save':
+            require_can('billing.edit');
+            $venc = post('vencimento');
+            if (!valid_date($venc)) throw new RuntimeException('Informe a data de vencimento.');
+            $desc = post('descricao');
+            if ($desc === '') throw new RuntimeException('Informe a descrição.');
+            $d = ['categoria' => array_key_exists(post('categoria'), INTERNAL_CATS) ? post('categoria') : 'outro', 'descricao' => mb_substr($desc, 0, 200),
+                'fornecedor' => post_or_null('fornecedor'), 'valor' => parse_money(post('valor')), 'vencimento' => $venc,
+                'recorrencia' => array_key_exists(post('recorrencia'), REC_LABELS) ? post('recorrencia') : 'nenhuma',
+                'avisar_email' => isset($_POST['avisar_email']) ? 1 : 0, 'avisar_whatsapp' => isset($_POST['avisar_whatsapp']) ? 1 : 0, 'notas' => post_or_null('notas')];
+            if ($id) { update('internal_bills', $id, $d); flash('Vencimento interno atualizado.'); }
+            else { insert('internal_bills', $d + ['status' => 'pendente', 'criado_em' => now()]); flash('Vencimento interno cadastrado. Você será avisado com 30, 15 e 7 dias de antecedência 🔔'); }
+            audit('ibill_save', $desc);
+            return $ret;
+
+        case 'ibill_pay':
+            require_can('billing.edit');
+            $b = row('SELECT * FROM internal_bills WHERE id = ?', [$id]);
+            if (!$b) throw new RuntimeException('Vencimento não encontrado.');
+            if ($b['status'] === 'pago') throw new RuntimeException('Este vencimento já está pago.');
+            record_internal_payment($b, (int) $u['id']);
+            if (!isset(REC_MONTHS[$b['recorrencia']])) { update('internal_bills', $id, ['status' => 'pago', 'pago_em' => now()]); flash('Marcado como pago ✅'); }
+            else {
+                $next = add_months($b['vencimento'], REC_MONTHS[$b['recorrencia']]);
+                update('internal_bills', $id, ['vencimento' => $next, 'pago_em' => now()]);
+                flash('Pago! Próximo vencimento: ' . fmt_date($next) . ' ✅');
+            }
+            audit('ibill_pay', $b['descricao']);
+            return $ret;
+
+        case 'ibill_reopen':
+            require_can('billing.edit');
+            $last = val('SELECT MAX(id) FROM internal_payments WHERE bill_id = ?', [$id]);
+            if ($last) q('DELETE FROM internal_payments WHERE id = ?', [$last]);
+            update('internal_bills', $id, ['status' => 'pendente', 'pago_em' => null]); flash('Vencimento reaberto.');
+            return $ret;
+
+        case 'ibill_delete':
+            require_can('delete');
+            q('DELETE FROM internal_bills WHERE id = ?', [$id]); audit('ibill_delete', "#$id"); flash('Vencimento interno excluído.');
             return $ret;
 
         /* ---------------- Links (Drive, Canva, Agenda) ---------------- */
