@@ -401,4 +401,4 @@ button.pill{background:transparent;font:inherit;cursor:pointer}
   .cal-dot{width:7px;height:7px;border-radius:50%;display:block}.cal-dots b{font-size:.58rem;color:var(--muted);line-height:1}
   .cal-nav h3{min-width:0;font-size:1.1rem}
 }
-.css-probe{--bay-css:ok}
+:root{--bay-css:"4"}

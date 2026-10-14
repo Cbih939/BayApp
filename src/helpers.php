@@ -172,13 +172,42 @@ function guess_link_type(string $url): string
     };
 }
 
-/** URL de um asset estático com ?v=<hash do conteúdo>, para o navegador/CDN não servir CSS/JS antigo após um deploy. */
+/** Versão do CSS que este código espera (precisa bater com `--bay-css` no fim de assets/css/app.css; some 1 ao mudar o CSS). */
+const ASSET_CSS_VERSION = '4';
+
+/**
+ * CSS e JS vão DENTRO da página: hospedagens/CDNs costumam guardar arquivos estáticos (.css/.js) por muito tempo,
+ * e aí o PHP novo chega com o visual velho. Embutindo, HTML, CSS e JS sempre vêm da mesma versão.
+ */
+function inline_css(string $path = 'assets/css/app.css'): string
+{
+    $f = APP_ROOT . '/' . $path;
+    return is_file($f) ? '<style>' . str_replace('</style', '<\/style', (string) file_get_contents($f)) . '</style>' : '';
+}
+
+function inline_js(string $path): string
+{
+    $f = APP_ROOT . '/' . $path;
+    return is_file($f) ? '<script>' . str_replace('</script', '<\/script', (string) file_get_contents($f)) . '</script>' : '';
+}
+
+/** Aviso (HTML) quando o assets/css/app.css do servidor é de outra versão — ex.: a pasta assets/ não foi enviada por completo. */
+function css_stale_banner(): string
+{
+    $f = APP_ROOT . '/assets/css/app.css';
+    $css = is_file($f) ? (string) file_get_contents($f) : '';
+    if (str_contains($css, '--bay-css:"' . ASSET_CSS_VERSION . '"')) return '';
+    return '<div style="position:fixed;left:0;right:0;top:0;z-index:9999;padding:12px 16px;background:#7c3aed;color:#fff;font:600 14px/1.4 system-ui,sans-serif;text-align:center">'
+        . 'O arquivo assets/css/app.css deste servidor está desatualizado ou incompleto (' . strlen($css) . ' bytes, versão esperada ' . ASSET_CSS_VERSION . '). '
+        . 'Envie novamente a pasta assets/ da versão mais recente.</div>';
+}
+
+/** URL de um asset estático (imagens) com ?v=<hash do conteúdo>. */
 function asset(string $path): string
 {
     $f = APP_ROOT . '/' . $path;
-    return $path . (is_file($f) ? '?v=' . substr(md5_file($f), 0, 10) : '');   // muda sempre que o conteúdo muda
+    return $path . (is_file($f) ? '?v=' . substr(md5_file($f), 0, 10) : '');
 }
-
 /** Logo da marca: versão branca (tema escuro) e azul-escuro (tema claro); o CSS alterna conforme o tema. */
 function brand_logo(string $alt = 'BayGroups'): string
 {

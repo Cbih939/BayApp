@@ -1,13 +1,13 @@
 <!doctype html>
 <html lang="pt-BR" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="csrf" content="<?= e(csrf_token()) ?>"><meta name="robots" content="noindex,nofollow"><meta name="css-size" content="<?= (int) @filesize(APP_ROOT . '/assets/css/app.css') ?>">
+<meta name="csrf" content="<?= e(csrf_token()) ?>"><meta name="robots" content="noindex,nofollow">
 <title><?= e($tabs[$p][0]) ?> — Portal <?= e($empresa) ?></title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png"><link rel="apple-touch-icon" href="assets/img/favicon.png">
-<link rel="stylesheet" href="<?= asset('assets/css/app.css') ?>">
+<?= inline_css() ?>
 <script>try{var t=localStorage.getItem('bay-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script></head>
-<body class="portal">
+<body class="portal"><?= css_stale_banner() ?>
 <header class="ptop">
   <a class="brand" href="portal.php"><?= brand_logo($empresa) ?></a>
   <nav class="pnav"><?php foreach ($tabs as $slug => [$label, $ico]): ?>
@@ -25,8 +25,8 @@
   <label>Nova senha (mín. 8)<input type="password" name="nova" minlength="8" required autocomplete="new-password"></label>
   <footer class="modal-f"><button type="button" class="btn ghost" data-close>Cancelar</button><button class="btn primary">Alterar</button></footer>
 </form></dialog>
-<script src="<?= asset('assets/js/app.js') ?>"></script>
-<script src="<?= asset('assets/js/work.js') ?>"></script>
+<?= inline_js('assets/js/app.js') ?>
+<?= inline_js('assets/js/work.js') ?>
 <script>window.BAY_CHAT={api:'portal.php?p=chat_api',unread:<?= (int) $chatUnread ?>}</script>
-<script src="<?= asset('assets/js/chat.js') ?>"></script>
+<?= inline_js('assets/js/chat.js') ?>
 </body></html>

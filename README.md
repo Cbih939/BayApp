@@ -46,7 +46,7 @@ Em *Clientes → (cliente) → aba Portal*, crie o login e envie ao cliente o li
 Ficam em `storage/uploads` (bloqueada ao acesso direto) com nome aleatório e só saem por download autenticado — equipe pelo painel, cliente apenas os do próprio cadastro e que não sejam *internos*. Aceita PDF, PNG/JPG/WEBP, Word e Excel, até 15 MB cada e 10 por envio (o limite do servidor, `post_max_size`, também vale). Faça backup dessa pasta junto com o banco.
 
 ## Visual desatualizado depois de atualizar?
-Os arquivos de visual (`assets/css`, `assets/js`) são servidos com versão pelo conteúdo e sempre revalidados. Se mesmo assim algum navegador/CDN entregar um `app.css` antigo ou incompleto, o app tenta recarregar sozinho e, se não resolver, mostra um aviso no topo com o tamanho esperado e o recebido. Nesse caso: Ctrl+F5, limpe o cache da hospedagem (hPanel) e confira se `assets/css/app.css` foi enviado por completo.
+O CSS e o JavaScript vão **embutidos dentro de cada página** (não são arquivos separados), porque hospedagens/CDNs costumam guardar `.css`/`.js` por muito tempo e entregar o PHP novo com o visual antigo. Basta enviar os arquivos do app e dar Ctrl+F5. Se o `assets/css/app.css` do servidor for de outra versão (por exemplo, a pasta `assets/` não foi enviada), aparece um aviso roxo no topo com o tamanho do arquivo encontrado. Ao mudar o CSS, atualize juntos `ASSET_CSS_VERSION` (em `src/helpers.php`) e `--bay-css` (no fim de `assets/css/app.css`).
 
 ## Segurança
 Senhas de login com `password_hash`, CSRF em todos os formulários, consultas preparadas, limite de tentativas de login, cookies `HttpOnly/SameSite`, pastas `src/`, `pages/` e `storage/` bloqueadas via `.htaccess` e trilha de auditoria.

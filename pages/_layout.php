@@ -7,14 +7,14 @@ $payLate = can('billing.view') ? (int) val("SELECT COUNT(*) FROM billings WHERE 
 $taskOver = tasks_overdue_mine((int) $me['id']);
 ?><!doctype html>
 <html lang="pt-BR" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="csrf" content="<?= e(csrf_token()) ?>"><meta name="robots" content="noindex,nofollow"><meta name="css-size" content="<?= (int) @filesize(APP_ROOT . '/assets/css/app.css') ?>">
+<meta name="csrf" content="<?= e(csrf_token()) ?>"><meta name="robots" content="noindex,nofollow">
 <title><?= e($title) ?> — <?= e(setting('empresa_nome', 'BayApp')) ?></title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png"><link rel="apple-touch-icon" href="assets/img/favicon.png">
-<link rel="stylesheet" href="<?= asset('assets/css/app.css') ?>">
+<?= inline_css() ?>
 <script>try{var t=localStorage.getItem('bay-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
-</head><body>
+</head><body><?= css_stale_banner() ?>
 <div class="shell">
   <aside class="sidebar" id="sidebar">
     <a class="brand" href="<?= url() ?>"><?= brand_logo(setting('empresa_nome', 'BayGroups')) ?></a>
@@ -61,8 +61,8 @@ $taskOver = tasks_overdue_mine((int) $me['id']);
 <div class="tour" id="tour" hidden><div class="tour-spot" id="tourSpot"></div>
   <div class="tour-box" id="tourBox"><b id="tourTitle"></b><p id="tourText"></p>
     <div class="tour-nav"><button class="btn ghost sm" id="tourSkip">Pular</button><span id="tourStep" class="muted"></span><button class="btn primary sm" id="tourNext">Próximo</button></div></div></div>
-<script src="<?= asset('assets/js/app.js') ?>"></script>
-<script src="<?= asset('assets/js/work.js') ?>"></script>
+<?= inline_js('assets/js/app.js') ?>
+<?= inline_js('assets/js/work.js') ?>
 <script>window.BAY_CHAT={api:'index.php?p=chat_api',unread:<?= $chatN ?>}</script>
-<script src="<?= asset('assets/js/chat.js') ?>"></script>
+<?= inline_js('assets/js/chat.js') ?>
 </body></html>
