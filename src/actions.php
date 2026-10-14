@@ -327,8 +327,13 @@ function handle_action(string $a): string
                 'titulo' => post_or_null('titulo') === null ? null : mb_substr(post('titulo'), 0, 200), 'legenda' => post_or_null('legenda'),
                 'midia_url' => clean_link(post('midia_url')), 'status' => $status, 'atualizado_em' => now(),
                 'publicado_em' => $status === 'concluido' ? (($old && $old['publicado_em']) ?: now()) : null];
+            $img = save_post_image();
+            $prev = $id ? row('SELECT imagem FROM posts WHERE id = ?', [$id]) : null;
+            if ($img) $d += ['imagem' => $img[0], 'imagem_nome' => $img[1]];
+            elseif ($prev && $prev['imagem'] && isset($_POST['remover_imagem'])) $d += ['imagem' => null, 'imagem_nome' => null];
             if ($id) { update('posts', $id, $d); flash('Post atualizado.'); }
             else { insert('posts', $d + ['criado_por' => $u['id'], 'criado_em' => now()]); flash('Post agendado no calendário 📅'); }
+            if ($prev && $prev['imagem'] && array_key_exists('imagem', $d)) files_unlink([['arquivo' => $prev['imagem']]]);
             audit('post_save', $dia);
             return $ret;
 
@@ -343,6 +348,7 @@ function handle_action(string $a): string
 
         case 'post_delete':
             require_can('delete');
+            files_unlink(rows('SELECT imagem AS arquivo FROM posts WHERE id = ? AND imagem IS NOT NULL', [$id]));
             q('DELETE FROM posts WHERE id = ?', [$id]); audit('post_delete', "#$id"); flash('Post excluído.');
             return $ret;
 

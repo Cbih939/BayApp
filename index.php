@@ -87,6 +87,13 @@ if ($p === 'download') {
     serve_file($f);
 }
 
+/* ---------- Imagem da arte de um post ---------- */
+if ($p === 'postimg') {
+    $f = can('posts.edit') || can('billing.view') || can('clients.edit') ? row('SELECT imagem AS arquivo, imagem_nome AS nome FROM posts WHERE id = ? AND imagem IS NOT NULL', [(int) ($_GET['id'] ?? 0)]) : null;
+    if (!$f) { http_response_code(404); exit('Imagem não encontrada.'); }
+    serve_file($f);
+}
+
 /* ---------- AJAX: revelar senha ---------- */
 if ($p === 'ajax') {
     header('Content-Type: application/json');

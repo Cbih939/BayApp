@@ -164,7 +164,7 @@ function schema_sql(string $driver): array
             FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE SET NULL){$eng}",
         "CREATE TABLE IF NOT EXISTS posts (
             id $pk, client_id INT NOT NULL, dia VARCHAR(10) NOT NULL, hora VARCHAR(5) NULL, canal VARCHAR(12) NOT NULL,
-            formato VARCHAR(12) NOT NULL DEFAULT 'post', titulo VARCHAR(200) NULL, legenda TEXT NULL, midia_url VARCHAR(700) NULL,
+            formato VARCHAR(12) NOT NULL DEFAULT 'post', titulo VARCHAR(200) NULL, legenda TEXT NULL, midia_url VARCHAR(700) NULL, imagem VARCHAR(60) NULL, imagem_nome VARCHAR(255) NULL,
             status VARCHAR(10) NOT NULL DEFAULT 'rascunho', publicado_em VARCHAR(19) NULL, criado_por INT NULL,
             criado_em VARCHAR(19) NOT NULL, atualizado_em VARCHAR(19) NOT NULL,
             FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE){$eng}",
@@ -217,7 +217,7 @@ function schema_sql(string $driver): array
     return $t;
 }
 
-const SCHEMA_VERSION = '8';
+const SCHEMA_VERSION = '9';
 
 /** Atualiza instalações antigas (cria tabelas novas) uma única vez. */
 function ensure_schema(): void
@@ -235,7 +235,8 @@ function create_schema(PDO $pdo, string $driver): void
 {
     // Coluna nova em instalações antigas (falha silenciosa se já existir).
     foreach (['ALTER TABLE tasks ADD COLUMN link VARCHAR(700) NULL', 'ALTER TABLE billings ADD COLUMN modelo VARCHAR(10) NULL',
-        'ALTER TABLE payments ADD COLUMN vencimento VARCHAR(10) NULL'] as $alter) {
+        'ALTER TABLE payments ADD COLUMN vencimento VARCHAR(10) NULL',
+        'ALTER TABLE posts ADD COLUMN imagem VARCHAR(60) NULL', 'ALTER TABLE posts ADD COLUMN imagem_nome VARCHAR(255) NULL'] as $alter) {
         try { $pdo->exec($alter); } catch (PDOException $e) {}
     }
 

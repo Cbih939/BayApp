@@ -122,7 +122,7 @@ function render_calendar(?int $client, array $pairs): string
 function calendar_dialogs(?int $client, string $ret): void
 {
     $canEdit = can('posts.edit'); ?>
-<dialog id="dlg-post" class="modal"><form method="post" class="stack"><?= csrf_field() ?>
+<dialog id="dlg-post" class="modal"><form method="post" class="stack" enctype="multipart/form-data"><?= csrf_field() ?>
   <input type="hidden" name="action" value="post_save"><input type="hidden" name="id" value=""><input type="hidden" name="return" value="<?= e($ret) ?>">
   <header class="modal-h"><h3 data-title="Novo post|Editar post">Novo post</h3><button type="button" class="icon-btn" data-close><?= icon('x') ?></button></header>
   <?php if ($client): ?><input type="hidden" name="client_id" value="<?= $client ?>"><?php else: ?>
@@ -134,6 +134,8 @@ function calendar_dialogs(?int $client, string $ret): void
   <label>Título / tema<input name="titulo" maxlength="200" placeholder="Ex.: Dica de leitura — Checklist"></label>
   <label>Legenda<textarea name="legenda" rows="4" placeholder="Texto que vai junto com a publicação…"></textarea></label>
   <label>Link da arte <small class="muted">(Canva, Drive ou endereço de uma imagem)</small><input type="url" name="midia_url" placeholder="https://"></label>
+  <label>Ou envie a imagem da arte <small class="muted">(PNG, JPG ou WEBP, até <?= fmt_size(UPLOAD_MAX_BYTES) ?>)</small><input type="file" name="imagem" accept="image/png,image/jpeg,image/webp"></label>
+  <label class="switch" id="post-rmimg" hidden><input type="checkbox" name="remover_imagem" value="1"><span></span> Remover a imagem atual <small class="muted" id="post-curimg"></small></label>
   <footer class="modal-f"><button type="button" class="btn ghost" data-close>Cancelar</button><button class="btn primary">Salvar post</button></footer>
 </form></dialog>
 
