@@ -39,7 +39,7 @@ function render_bill_card(array $b, bool $showClient = true, string $ret = ''): 
         <p class="muted"><?php if ($showClient): ?><a href="<?= url('cliente', ['id' => $b['client_id']]) ?>"><?= e($b['cliente'] ?? '') ?></a> · <?php endif; ?><?= e(BILL_TYPES[$b['tipo']] ?? $b['tipo']) ?><?= $b['fornecedor'] ? ' · ' . e($b['fornecedor']) : '' ?></p>
         <div class="chips"><span class="chip"><?= icon('calendar', 14) ?> <?= fmt_date($b['vencimento']) ?></span>
           <span class="chip"><?= fmt_money($b['valor']) ?></span>
-          <?php if ($b['recorrencia'] !== 'nenhuma'): ?><span class="chip">↻ <?= e($b['recorrencia']) ?></span><?php endif; ?>
+          <?php if ($b['recorrencia'] !== 'nenhuma'): ?><span class="chip">↻ <?= e(REC_LABELS[$b['recorrencia']] ?? $b['recorrencia']) ?></span><?php endif; ?>
           <span class="chip tag-<?= $cls ?>"><?= e($label) ?></span>
           <?php if ($b['avisar_email']): ?><span class="chip dim" title="Alerta por e-mail"><?= icon('mail', 13) ?></span><?php endif; ?>
           <?php if ($b['avisar_whatsapp']): ?><span class="chip dim" title="Alerta por WhatsApp"><?= icon('phone', 13) ?></span><?php endif; ?></div>
@@ -139,20 +139,20 @@ function dlg_bill(?int $client = null, string $ret = ''): void
 { ?>
 <dialog id="dlg-bill" class="modal"><form method="post" class="stack"><?= csrf_field() ?>
   <input type="hidden" name="action" value="bill_save"><input type="hidden" name="id" value=""><input type="hidden" name="return" value="<?= e($ret) ?>">
-  <header class="modal-h"><h3 data-title="Novo vencimento|Editar vencimento">Novo vencimento</h3><button type="button" class="icon-btn" data-close><?= icon('x') ?></button></header>
+  <header class="modal-h"><h3 data-title="Novo serviço|Editar serviço">Novo serviço</h3><button type="button" class="icon-btn" data-close><?= icon('x') ?></button></header>
   <?php if ($client): ?><input type="hidden" name="client_id" value="<?= $client ?>"><?php else: ?>
   <label>Cliente<select name="client_id" required><?= client_options() ?></select></label><?php endif; ?>
-  <div class="grid2"><label>Tipo<select name="tipo"><?php foreach (BILL_TYPES as $k => $v): ?><option value="<?= $k ?>"><?= e($v) ?></option><?php endforeach; ?></select></label>
-    <label>Descrição<input name="descricao" placeholder="Ex.: meucliente.com.br"></label></div>
-  <div class="grid3"><label>Vencimento<input type="date" name="vencimento" required></label>
+  <div class="grid2"><label>Tipo de serviço<select name="tipo"><?php foreach (BILL_GROUPS as $g => $keys): ?><optgroup label="<?= e($g) ?>"><?php foreach ($keys as $k): ?><option value="<?= $k ?>"><?= e(BILL_TYPES[$k]) ?></option><?php endforeach; ?></optgroup><?php endforeach; ?></select></label>
+    <label>Descrição<input name="descricao" placeholder="Ex.: Gestão de Instagram, meucliente.com.br…"></label></div>
+  <div class="grid3" style="grid-template-columns:1fr 1fr 1.35fr"><label>Vencimento<input type="date" name="vencimento" required></label>
     <label>Valor (R$)<input name="valor" inputmode="decimal" placeholder="0,00"></label>
-    <label>Repete<select name="recorrencia"><option value="nenhuma">Não repete</option><option value="mensal">Todo mês</option><option value="anual">Todo ano</option></select></label></div>
-  <label>Fornecedor<input name="fornecedor" placeholder="Registro.br, Hostinger, Google…"></label>
+    <label>Cobrança<select name="recorrencia"><?php foreach (REC_LABELS as $k => $v): ?><option value="<?= $k ?>"><?= e($v) ?></option><?php endforeach; ?></select></label></div>
+  <label>Fornecedor / responsável<input name="fornecedor" placeholder="Registro.br, Hostinger, Meta Ads…"></label>
   <div class="field"><label>Avisar nos marcos de 30, 15 e 7 dias por</label>
     <div class="switches"><label class="switch"><input type="checkbox" name="avisar_email" checked><span></span> <?= icon('mail', 16) ?> E-mail</label>
     <label class="switch"><input type="checkbox" name="avisar_whatsapp" checked><span></span> <?= icon('phone', 16) ?> WhatsApp</label></div></div>
   <label>Observações<textarea name="notas" rows="2"></textarea></label>
-  <footer class="modal-f"><button type="button" class="btn ghost" data-close>Cancelar</button><button class="btn primary">Salvar vencimento</button></footer>
+  <footer class="modal-f"><button type="button" class="btn ghost" data-close>Cancelar</button><button class="btn primary">Salvar serviço</button></footer>
 </form></dialog>
 <?php }
 

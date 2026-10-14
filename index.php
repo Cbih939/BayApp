@@ -8,9 +8,11 @@ start_session();
 $NAV = [
     'dashboard'   => ['Início', 'home', null],
     'clientes'    => ['Clientes', 'briefcase', null],
+    'pacotes'     => ['Pacotes', 'package', 'clients.edit'],
     'senhas'      => ['Senhas', 'key', 'creds.view'],
     'tarefas'     => ['Tarefas', 'tasks', null],
-    'vencimentos' => ['Vencimentos', 'calendar', 'billing.view'],
+    'calendario'  => ['Calendário', 'cal', null],
+    'vencimentos' => ['Serviços', 'wallet', 'billing.view'],
     'relatorios'  => ['Relatórios', 'chart', null],
     'chat'        => ['Mensagens', 'chat', null],
     'links'       => ['Pastas & Links', 'folder', null],
@@ -35,19 +37,35 @@ if (!user()) {
 /* ---------- AJAX: chat (polling) ---------- */
 if ($p === 'chat_api') chat_api('team', null, user());
 
-/* ---------- AJAX: mover tarefa (arrastar no quadro) ---------- */
+/* ---------- AJAX: tarefas (mover no quadro, marcar/adicionar item do checklist) ---------- */
 if ($p === 'task_api') {
     header('Content-Type: application/json');
     if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !csrf_ok()) { http_response_code(403); exit('{"erro":"negado"}'); }
-    try { task_move_to((int) ($_POST['id'] ?? 0), post('status')); exit('{"ok":true}'); }
-    catch (RuntimeException $ex) { http_response_code(422); exit(json_encode(['erro' => $ex->getMessage()])); }
+    try {
+        $a = post('a', 'move');
+        if ($a === 'move') { task_move_to((int) ($_POST['id'] ?? 0), post('status')); exit('{"ok":true}'); }
+        if ($a === 'item_toggle') {
+            $it = row('SELECT id, task_id FROM task_items WHERE id = ?', [(int) ($_POST['id'] ?? 0)]);
+            if (!$it) throw new RuntimeException('Item não encontrado.');
+            update('task_items', (int) $it['id'], ['feito' => post('feito') === '1' ? 1 : 0]);
+        } elseif ($a === 'item_add') {
+            $tid = (int) ($_POST['task_id'] ?? 0); $txt = mb_substr(post('texto'), 0, 300);
+            if (!row('SELECT id FROM tasks WHERE id = ?', [$tid])) throw new RuntimeException('Tarefa não encontrada.');
+            if ($txt === '') throw new RuntimeException('Digite o item.');
+            $newId = insert('task_items', ['task_id' => $tid, 'texto' => $txt, 'feito' => 0, 'ordem' => (int) val('SELECT COALESCE(MAX(ordem), 0) + 1 FROM task_items WHERE task_id = ?', [$tid])]);
+            $it = ['task_id' => $tid];
+        } else throw new RuntimeException('Ação inválida.');
+        update('tasks', (int) $it['task_id'], ['atualizado_em' => now()]);
+        $all = rows('SELECT feito FROM task_items WHERE task_id = ?', [$it['task_id']]);
+        exit(json_encode(['ok' => true, 'id' => $newId ?? null, 'done' => count(array_filter($all, fn($r) => $r['feito'])), 'total' => count($all)]));
+    } catch (RuntimeException $ex) { http_response_code(422); exit(json_encode(['erro' => $ex->getMessage()])); }
 }
 
 /* ---------- Download de relatório (PDF / CSV) ---------- */
 if ($p === 'relatorio_export') {
     $f = report_filters($_GET);
     $r = report_build($f);
-    $name = 'relatorio-' . $f['from'] . '_' . $f['to'];
+    $name = 'relatorio-' . $f['kind'] . '-' . $f['from'] . '_' . $f['to'];
     audit('report_export', strtoupper((string) ($_GET['fmt'] ?? 'pdf')) . ' ' . $f['from'] . ' a ' . $f['to']);
     if (($_GET['fmt'] ?? '') === 'csv') {
         header('Content-Type: text/csv; charset=utf-8');

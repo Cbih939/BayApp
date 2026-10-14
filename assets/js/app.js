@@ -58,6 +58,7 @@
     $('[data-title]', dlg) && ($('[data-title]', dlg).textContent = $('[data-title]', dlg).dataset.title.split('|')[0]);
     $$('[data-keep]', dlg).forEach(x => x.hidden = true); setCat(dlg, 'outro'); $('details.paste', dlg)?.removeAttribute('open');
     if (f.elements.senha) f.elements.senha.required = f.elements.action.value === 'user_save';
+    dlg.dispatchEvent(new Event('bay:reset', { bubbles: true }));
   };
   const openDlg = dlg => { dlg.showModal(); dlg.querySelector('input:not([type=hidden]):not([type=checkbox]),select')?.focus(); };
   document.addEventListener('click', e => {
@@ -74,7 +75,7 @@
       if (f.elements.senha) { f.elements.senha.value = ''; f.elements.senha.required = false; }
       $$('[data-keep]', d).forEach(x => x.hidden = false);
       const t = $('[data-title]', d); if (t) t.textContent = t.dataset.title.split('|')[1];
-      setCat(d, item.categoria); openDlg(d); return;
+      setCat(d, item.categoria); d.dispatchEvent(new CustomEvent('bay:fill', { bubbles: true, detail: item })); openDlg(d); return;
     }
     if (e.target.closest('[data-close]')) { e.target.closest('dialog').close(); return; }
     if (e.target.tagName === 'DIALOG') e.target.close();
@@ -130,9 +131,12 @@
   const steps = [
     ['dashboard', 'Seu painel', 'Resumo de clientes, vencimentos e alertas recentes.'],
     ['clientes', 'Clientes', 'Cada cliente tem uma página com senhas, vencimentos e links.'],
-    ['tarefas', 'Tarefas', 'Quadro Kanban da equipe: atribua responsáveis, prazos e acompanhe o andamento.'],
+    ['tarefas', 'Tarefas', 'Quadro Kanban: clique na tarefa para ler os detalhes, abrir o link e marcar o checklist.'],
+    ['calendario', 'Calendário', 'Planeje as postagens de cada cliente e veja o conteúdo em um clique.'],
+    ['pacotes', 'Pacotes', 'Defina o que cada pacote garante por mês (posts, stories, relatórios…).'],
     ['senhas', 'Cofre de senhas', 'Todos os acessos criptografados, com copiar e gerar senha forte.'],
-    ['vencimentos', 'Vencimentos', 'Domínios, hospedagens e contas com alertas em 30, 15 e 7 dias.'],
+    ['vencimentos', 'Serviços', 'Redes sociais, campanhas, domínios e hospedagens com alertas em 30, 15 e 7 dias.'],
+    ['relatorios', 'Relatórios', 'Financeiro e tarefas em relatórios separados, com PDF e Excel.'],
     ['links', 'Pastas & Links', 'Drive, Canva e Google Agenda de cada cliente.'],
     ['usuarios', 'Equipe', 'Crie administradores, designers e devs.'],
     ['config', 'Configurações', 'Ligue os alertas por e-mail e WhatsApp e configure o cron.'],

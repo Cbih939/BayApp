@@ -6,9 +6,13 @@ Aplicativo em **PHP 8 + MySQL** (preto, branco e roxo) para agências: cadastro 
 | Módulo | O que faz |
 |---|---|
 | **Equipe** | Usuários *Administrador*, *Designer* e *Desenvolvedor* (criar, editar, desativar, excluir) com permissões por perfil |
-| **Clientes** | Cadastro em cards; página do cliente com abas Senhas · Vencimentos · Links |
+| **Clientes** | Cadastro em cards; página do cliente com abas Contrato & pacote · Calendário · Senhas · Serviços · Tarefas · Links · Portal |
+| **Pacotes e contrato** | Pacotes com o que o cliente tem direito por mês (posts, stories, relatórios…); contrato em vigor com início, término, valor, cobrança e link do documento; uso do pacote no mês contado pelo calendário |
+| **Calendário de postagem** | Grade mensal por cliente ou geral, com canal, formato, status, legenda e link da arte (Canva/Drive); modal de preview, clonar e marcar como publicado |
 | **Senhas** | Por cliente e tipo (Instagram, site, hospedagem, domínio, e-mail…). Cadastro rápido: chips de tipo, gerador de senha forte, “colar tudo de uma vez”. Criptografia AES-256-GCM; ver/copiar fica registrado |
-| **Vencimentos** | Domínios, hospedagem, e-mail, SSL etc. com valor, recorrência (mensal/anual) e botão “pago” que já agenda o próximo ciclo |
+| **Serviços** | Redes sociais, campanhas, site, design, domínio, hospedagem… com valor e cobrança (único, ao mês, trimestre, semestre ou ano). “Pago” guarda o histórico e já agenda o próximo ciclo |
+| **Tarefas** | Quadro Kanban com link próprio, detalhes e checklist com check; clique no cartão para ler e marcar os itens |
+| **Relatórios** | Financeiro (pago/previsto por mês, contrato desde, último mês pago, próximo vencimento) e Tarefas, separados, em gráficos de barras; PDF, Excel (CSV) e WhatsApp |
 | **Alertas** | Cron diário envia avisos a **30, 15 e 7 dias** (uma vez por marco) por **e-mail** e **WhatsApp** |
 | **Pastas & Links** | Drive, Canva, Agenda, Docs, Figma — tipo detectado automaticamente |
 | **Portal do cliente** | `portal.php`: login próprio para clientes (vários usuários por cliente), somente leitura — vê vencimentos e pastas/links; **não** vê senhas nem observações internas. Criado na aba *Portal* de cada cliente |

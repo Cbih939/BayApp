@@ -13,6 +13,8 @@ require __DIR__ . '/auth.php';
 require __DIR__ . '/notify.php';
 require __DIR__ . '/chat.php';
 require __DIR__ . '/tasks.php';
+require __DIR__ . '/plans.php';
+require __DIR__ . '/calendar.php';
 require __DIR__ . '/reports.php';
 
 if ($CONFIG) ensure_schema();

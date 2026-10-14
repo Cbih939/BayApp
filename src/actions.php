@@ -94,26 +94,28 @@ function handle_action(string $a): string
             $venc = post('vencimento');
             if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $venc)) throw new RuntimeException('Informe a data de vencimento.');
             $tipo = array_key_exists(post('tipo'), BILL_TYPES) ? post('tipo') : 'outro';
-            $rec = in_array(post('recorrencia'), ['mensal', 'anual'], true) ? post('recorrencia') : 'nenhuma';
-            $valor = post('valor') === '' ? null : (float) str_replace(['.', ','], ['', '.'], post('valor'));
+            $rec = array_key_exists(post('recorrencia'), REC_LABELS) ? post('recorrencia') : 'nenhuma';
+            $valor = parse_money(post('valor'));
             $d = ['client_id' => $cid, 'tipo' => $tipo, 'descricao' => post('descricao') ?: BILL_TYPES[$tipo],
                 'fornecedor' => post_or_null('fornecedor'), 'valor' => $valor, 'vencimento' => $venc, 'recorrencia' => $rec,
                 'avisar_email' => isset($_POST['avisar_email']) ? 1 : 0, 'avisar_whatsapp' => isset($_POST['avisar_whatsapp']) ? 1 : 0,
                 'notas' => post_or_null('notas')];
-            if ($id) { update('billings', $id, $d); flash('Vencimento atualizado.'); }
-            else { insert('billings', $d + ['status' => 'pendente', 'criado_em' => now()]); flash('Vencimento cadastrado. Você será avisado com 30, 15 e 7 dias de antecedência 🔔'); }
+            if ($id) { update('billings', $id, $d); flash('Serviço atualizado.'); }
+            else { insert('billings', $d + ['status' => 'pendente', 'criado_em' => now()]); flash('Serviço cadastrado. Você será avisado com 30, 15 e 7 dias de antecedência 🔔'); }
             audit('bill_save', $d['descricao']);
             return $ret;
 
         case 'bill_pay':
             require_can('billing.edit');
             $b = row('SELECT * FROM billings WHERE id = ?', [$id]);
-            if (!$b) throw new RuntimeException('Vencimento não encontrado.');
-            if ($b['recorrencia'] === 'nenhuma') {
+            if (!$b) throw new RuntimeException('Serviço não encontrado.');
+            if ($b['status'] === 'pago') throw new RuntimeException('Este serviço já está pago.');
+            record_payment($b, (int) $u['id']);
+            if (!isset(REC_MONTHS[$b['recorrencia']])) {
                 update('billings', $id, ['status' => 'pago', 'pago_em' => now()]);
                 flash('Marcado como pago ✅');
             } else {
-                $next = add_months($b['vencimento'], $b['recorrencia'] === 'mensal' ? 1 : 12);
+                $next = add_months($b['vencimento'], REC_MONTHS[$b['recorrencia']]);
                 update('billings', $id, ['vencimento' => $next, 'pago_em' => now()]);
                 flash('Pago! Próximo vencimento: ' . fmt_date($next) . ' ✅');
             }
@@ -122,12 +124,14 @@ function handle_action(string $a): string
 
         case 'bill_reopen':
             require_can('billing.edit');
-            update('billings', $id, ['status' => 'pendente', 'pago_em' => null]); flash('Vencimento reaberto.');
+            $last = val('SELECT MAX(id) FROM payments WHERE billing_id = ?', [$id]);
+            if ($last) q('DELETE FROM payments WHERE id = ?', [$last]);
+            update('billings', $id, ['status' => 'pendente', 'pago_em' => null]); flash('Serviço reaberto.');
             return $ret;
 
         case 'bill_delete':
             require_can('delete');
-            q('DELETE FROM billings WHERE id = ?', [$id]); audit('bill_delete', "#$id"); flash('Vencimento excluído.');
+            q('DELETE FROM billings WHERE id = ?', [$id]); audit('bill_delete', "#$id"); flash('Serviço excluído.');
             return $ret;
 
         /* ---------------- Links (Drive, Canva, Agenda) ---------------- */
@@ -158,7 +162,7 @@ function handle_action(string $a): string
             $prazo = post('prazo');
             if ($prazo !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $prazo)) throw new RuntimeException('Data de prazo inválida.');
             $status = array_key_exists(post('status'), TASK_STATUS) ? post('status') : 'a_fazer';
-            $d = ['titulo' => mb_substr($titulo, 0, 200), 'descricao' => post_or_null('descricao'), 'client_id' => $cid, 'assignee_id' => $aid,
+            $d = ['titulo' => mb_substr($titulo, 0, 200), 'descricao' => post_or_null('descricao'), 'link' => clean_link(post('link')), 'client_id' => $cid, 'assignee_id' => $aid,
                 'prioridade' => array_key_exists(post('prioridade'), TASK_PRIO) ? post('prioridade') : 'media',
                 'status' => $status, 'prazo' => $prazo === '' ? null : $prazo, 'atualizado_em' => now()];
             $old = $id ? row('SELECT status, assignee_id FROM tasks WHERE id = ?', [$id]) : null;
@@ -166,6 +170,7 @@ function handle_action(string $a): string
             $d['concluida_em'] = $status === 'feito' ? (($old && $old['status'] === 'feito') ? val('SELECT concluida_em FROM tasks WHERE id = ?', [$id]) : now()) : null;
             if ($id) { update('tasks', $id, $d); flash('Tarefa atualizada.'); }
             else { $id = insert('tasks', $d + ['criado_por' => $u['id'], 'criado_em' => now()]); flash('Tarefa criada ✅'); }
+            if (isset($_POST['item_texto']) && is_array($_POST['item_texto'])) task_save_items($id, $_POST['item_texto'], (array) ($_POST['item_feito'] ?? []));
             if ($aid && $aid !== (int) $u['id'] && (!$old || (int) $old['assignee_id'] !== $aid)) {
                 $r = row('SELECT nome, email FROM users WHERE id = ?', [$aid]);
                 if ($r && filter_var($r['email'], FILTER_VALIDATE_EMAIL)) {
@@ -184,6 +189,91 @@ function handle_action(string $a): string
         case 'task_delete':
             require_can('delete');
             q('DELETE FROM tasks WHERE id = ?', [$id]); audit('task_delete', "#$id"); flash('Tarefa excluída.');
+            return $ret;
+
+        /* ---------------- Pacotes e contratos ---------------- */
+        case 'plan_save':
+            require_can('clients.edit');
+            $nome = post('nome');
+            if ($nome === '') throw new RuntimeException('Informe o nome do pacote.');
+            $d = ['nome' => mb_substr($nome, 0, 120), 'descricao' => post_or_null('descricao'), 'valor' => parse_money(post('valor')), 'ativo' => isset($_POST['ativo']) ? 1 : 0];
+            if ($id) { update('plans', $id, $d); flash('Pacote atualizado.'); }
+            else { $id = insert('plans', $d + ['criado_em' => now()]); flash('Pacote criado 📦'); }
+            q('DELETE FROM plan_items WHERE plan_id = ?', [$id]);
+            foreach ((array) ($_POST['item_tipo'] ?? []) as $i => $tipo) {
+                $qtd = (int) (((array) ($_POST['item_qtd'] ?? []))[$i] ?? 0);
+                if (!isset(DELIVERY_TYPES[$tipo]) || $qtd < 1) continue;
+                $desc = trim((string) (((array) ($_POST['item_desc'] ?? []))[$i] ?? ''));
+                insert('plan_items', ['plan_id' => $id, 'tipo' => $tipo, 'quantidade' => min($qtd, 999), 'descricao' => $desc === '' ? null : mb_substr($desc, 0, 160)]);
+            }
+            audit('plan_save', $nome);
+            return $ret;
+
+        case 'plan_delete':
+            require_can('delete');
+            q('DELETE FROM plans WHERE id = ?', [$id]); audit('plan_delete', "#$id"); flash('Pacote excluído (contratos ligados ficam sem pacote).');
+            return $ret;
+
+        case 'contract_save':
+            require_can('clients.edit');
+            $cid = (int) post('client_id');
+            if (!row('SELECT id FROM clients WHERE id = ?', [$cid])) throw new RuntimeException('Cliente não encontrado.');
+            $ini = post('inicio'); $fim = post('fim');
+            if (!valid_date($ini)) throw new RuntimeException('Informe a data de início do contrato.');
+            if ($fim !== '' && !valid_date($fim)) throw new RuntimeException('Data de término inválida.');
+            if ($fim !== '' && $fim < $ini) throw new RuntimeException('O término não pode ser antes do início.');
+            $pid = post('plan_id') === '' ? null : (int) post('plan_id');
+            if ($pid !== null && !row('SELECT id FROM plans WHERE id = ?', [$pid])) throw new RuntimeException('Pacote não encontrado.');
+            $d = ['client_id' => $cid, 'plan_id' => $pid, 'inicio' => $ini, 'fim' => $fim === '' ? null : $fim, 'valor' => parse_money(post('valor')),
+                'periodicidade' => array_key_exists(post('periodicidade'), REC_LABELS) ? post('periodicidade') : 'mensal',
+                'url' => clean_link(post('url')), 'notas' => post_or_null('notas'), 'status' => post('status') === 'encerrado' ? 'encerrado' : 'ativo'];
+            if ($id) { update('contracts', $id, $d); flash('Contrato atualizado.'); }
+            else {
+                if ($d['status'] === 'ativo') q("UPDATE contracts SET status = 'encerrado' WHERE client_id = ? AND status = 'ativo'", [$cid]);
+                insert('contracts', $d + ['criado_em' => now()]); flash('Contrato cadastrado 📄');
+            }
+            audit('contract_save', "cliente #$cid");
+            return $ret;
+
+        case 'contract_delete':
+            require_can('delete');
+            q('DELETE FROM contracts WHERE id = ?', [$id]); audit('contract_delete', "#$id"); flash('Contrato excluído.');
+            return $ret;
+
+        /* ---------------- Calendário de postagem ---------------- */
+        case 'post_save':
+            require_can('posts.edit');
+            $cid = (int) post('client_id');
+            if (!row('SELECT id FROM clients WHERE id = ?', [$cid])) throw new RuntimeException('Escolha o cliente.');
+            $dia = post('dia'); $hora = post('hora');
+            if (!valid_date($dia)) throw new RuntimeException('Informe a data da postagem.');
+            if ($hora !== '' && !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $hora)) throw new RuntimeException('Horário inválido.');
+            $status = array_key_exists(post('status'), POST_STATUS) ? post('status') : 'planejado';
+            $old = $id ? row('SELECT status, publicado_em FROM posts WHERE id = ?', [$id]) : null;
+            if ($id && !$old) throw new RuntimeException('Post não encontrado.');
+            $d = ['client_id' => $cid, 'dia' => $dia, 'hora' => $hora === '' ? null : $hora,
+                'canal' => array_key_exists(post('canal'), POST_CHANNELS) ? post('canal') : 'outro',
+                'formato' => array_key_exists(post('formato'), POST_FORMATS) ? post('formato') : 'post',
+                'titulo' => post_or_null('titulo') === null ? null : mb_substr(post('titulo'), 0, 200), 'legenda' => post_or_null('legenda'),
+                'midia_url' => clean_link(post('midia_url')), 'status' => $status, 'atualizado_em' => now(),
+                'publicado_em' => $status === 'publicado' ? (($old && $old['publicado_em']) ?: now()) : null];
+            if ($id) { update('posts', $id, $d); flash('Post atualizado.'); }
+            else { insert('posts', $d + ['criado_por' => $u['id'], 'criado_em' => now()]); flash('Post agendado no calendário 📅'); }
+            audit('post_save', $dia);
+            return $ret;
+
+        case 'post_status':
+            require_can('posts.edit');
+            $st = post('status');
+            if (!isset(POST_STATUS[$st])) throw new RuntimeException('Status inválido.');
+            if (!row('SELECT id FROM posts WHERE id = ?', [$id])) throw new RuntimeException('Post não encontrado.');
+            update('posts', $id, ['status' => $st, 'publicado_em' => $st === 'publicado' ? now() : null, 'atualizado_em' => now()]);
+            flash('Post marcado como ' . mb_strtolower(POST_STATUS[$st]) . '.');
+            return $ret;
+
+        case 'post_delete':
+            require_can('delete');
+            q('DELETE FROM posts WHERE id = ?', [$id]); audit('post_delete', "#$id"); flash('Post excluído.');
             return $ret;
 
         /* ---------------- Portal do cliente ---------------- */
