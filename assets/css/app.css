@@ -323,3 +323,40 @@ body.portal{min-height:100vh}
 .rep-axis{stroke:var(--border);stroke-width:1}.rep-grid{stroke:var(--border);stroke-width:1;stroke-dasharray:3 4;opacity:.7}.rep-s{font-size:10px}
 .rep-col{transition:opacity .15s}.rep-col:hover{opacity:.78}
 .rep-kpis .rep-kpi{white-space:nowrap;font-size:1.3rem}
+
+/* ---------- pagamentos, arquivos e modelo de vencimento ---------- */
+.seg-choice{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.choice{flex-direction:row;align-items:stretch;padding:0;cursor:pointer;color:var(--text)}
+.choice input{position:absolute;opacity:0;pointer-events:none}
+.choice span{flex:1;display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--bg2);transition:.15s}
+.choice b{font-size:.86rem}.choice small{font-weight:500;color:var(--muted);font-size:.74rem}
+.choice:hover span{border-color:var(--purple2)}
+.choice input:checked+span{border-color:var(--purple);background:rgba(139,92,246,.14);box-shadow:0 0 0 3px var(--glow)}
+.choice input:focus-visible+span{outline:2px solid var(--purple2);outline-offset:2px}
+@media (max-width:560px){.seg-choice{grid-template-columns:1fr}}
+.sub-toggle{margin:4px 0 18px}.sub-pane[hidden]{display:none}
+.files-row{margin-top:6px}
+.file-chip{text-decoration:none;color:var(--text);transition:.15s;max-width:100%}.file-chip:hover{border-color:var(--purple);background:rgba(139,92,246,.14)}
+.file-chip.k-boleto{border-color:var(--purple2);color:var(--purple2)}.file-chip.k-quitacao{border-color:var(--ok);color:var(--ok)}
+.file-btn{cursor:pointer;font-family:inherit;background:transparent;border-style:dashed;color:var(--muted)}.file-btn:hover{color:var(--text);border-color:var(--purple)}
+.paymodal{width:min(660px,95vw)}.paymodal .modal-h{align-items:flex-start;gap:12px}.paymodal h3{font-size:1.25rem;line-height:1.25;margin-top:2px}.paymodal .eyebrow{margin:0}
+.pm-info{margin:10px 0 0}.pm-kind{margin:14px 0 6px;font-size:.72rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+.pm-file{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--bg2);margin-bottom:6px}
+.pm-file a{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--purple2);font-weight:600}.pm-file a:hover{text-decoration:underline}
+.pm-file small{white-space:nowrap}.pm-file .icon-btn{width:28px;height:28px;font-size:.75rem}
+.pm-upload{margin-top:16px;padding:14px;border:1px dashed var(--border);border-radius:14px;display:flex;flex-direction:column;gap:12px}
+.pm-upload input[type=file]{padding:9px}
+.cal-chip.st-pago{border-left:3px solid var(--ok)}.cal-chip.st-aberto{border-left:3px solid var(--warn)}.cal-chip.st-atrasado{border-left:3px solid var(--bad)}
+.cal-chip.st-previsto{border-left:3px dashed var(--muted);opacity:.8}
+.pst-fu{color:var(--muted);font-weight:700}.legend{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}.legend .pst{margin-left:6px}
+.cal-chip svg{flex:none;color:var(--muted)}
+
+/* ---------- pastas & links + tarefas ---------- */
+.cblock{margin-bottom:18px;padding:18px}.cblock:hover{transform:none}
+.cblock-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}.cblock-h h3{margin-right:auto}.cblock-h a:hover{color:var(--purple2)}
+.cblock-body{display:grid;grid-template-columns:1.2fr 1fr;gap:20px;align-items:start}
+.cb-col h5{margin:0 0 10px;font-size:.74rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+@media (max-width:900px){.cblock-body{grid-template-columns:1fr}}
+.tmini{padding:12px 14px;cursor:pointer}.tmini h4{white-space:normal;font-size:.95rem}.tmini .chips{margin-top:6px}
+.tv-links{margin:0 0 4px}
+button.pill{background:transparent;font:inherit;cursor:pointer}.sec-h .btn{white-space:nowrap}

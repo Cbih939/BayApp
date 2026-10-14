@@ -85,6 +85,9 @@
       const chips = $('#tv-chips'); chips.innerHTML = '';
       [[cur.status_label, ''], [cur.prio_label, 'prio-chip'], [cur.prazo_label, 'tag-' + cur.prazo_cls], [cur.responsavel ? 'Resp.: ' + cur.responsavel : '', 'dim']].forEach(([t, c]) => { if (t) chips.append(el('span', 'chip ' + c, t)); });
       const a = $('#tv-link'); a.hidden = !cur.link; if (cur.link) { a.href = cur.link; $('span', a).textContent = cur.link.replace(/^https?:\/\/(www\.)?/, '').slice(0, 48); }
+      const lk = $('#tv-links'); lk.innerHTML = '';
+      (cur.links || []).forEach(l => { const a = el('a', 'chip file-chip', l.tipo + ': ' + l.titulo); a.href = l.url; a.target = '_blank'; a.rel = 'noopener noreferrer'; lk.append(a); });
+      $('#tv-links-h').hidden = !(cur.links || []).length;
       const d = $('#tv-desc'); d.textContent = cur.descricao || 'Sem detalhes.'; d.classList.toggle('muted', !cur.descricao);
       const ul = $('#tv-list'); ul.innerHTML = ''; cur.itens.forEach(it => ul.append(li(it)));
       if (!cur.itens.length) ul.append(el('li', 'muted', 'Nenhum item no checklist ainda.'));
@@ -167,5 +170,79 @@
       openNew({ client_id: p.client_id, dia: p.dia, hora: p.hora || '', canal: p.canal, formato: p.formato, titulo: p.titulo ? p.titulo + ' (cópia)' : '', legenda: p.legenda, midia_url: p.midia_url, status: 'planejado' });
     });
     pv.addEventListener('click', e => { if (e.target.closest('[data-edit]')) pv.close(); }, true);
+  }
+
+  /* ---------- alternância Lista | Calendário (pagamentos) ---------- */
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-sub]'); if (!b) return;
+    const bar = b.closest('.sub-toggle'), root = bar.parentElement;
+    $$('[data-sub]', bar).forEach(x => x.classList.toggle('active', x === b));
+    $$(':scope > .sub-pane', root).forEach(p => { p.hidden = p.dataset.pane !== b.dataset.sub; });
+  });
+
+  /* ---------- pagamentos: modal de arquivos (boleto, quitação) ---------- */
+  const payEl = $('#pay-data');
+  if (payEl) {
+    const D = JSON.parse(payEl.textContent), pm = $('#dlg-pay'), pd = $('#dlg-payday');
+    const ORDER = ['boleto', 'quitacao', 'outro', 'interno'];
+    const money = ev => ev.valor_fmt;
+    const openPay = key => {
+      const ev = D.events[key]; if (!ev) return;
+      pd?.close();
+      const open = ev.estado === 'aberto' || ev.estado === 'atrasado';
+      $('#pm-item').dataset.item = JSON.stringify(ev.bill || {});
+      $('#pm-client').textContent = ev.cliente; $('#pm-title').textContent = ev.descricao;
+      const chips = $('#pm-chips'); chips.innerHTML = '';
+      [[ev.tipo_label, ''], [ev.modelo_label, ''], [ev.estado_label, 'tag-' + ({ aberto: 'd15', atrasado: 'over', pago: 'ok', previsto: 'paid' }[ev.estado])]].forEach(([t, c]) => chips.append(el('span', 'chip ' + c, t)));
+      $('#pm-venc').textContent = 'Vencimento: ' + ev.dia_fmt;
+      $('#pm-valor').textContent = 'Valor: ' + money(ev);
+      $('#pm-status').textContent = ev.estado === 'pago' ? 'Pago em ' + ev.pago_fmt : ev.estado === 'previsto' ? 'Vencimento previsto (renovação automática)' : ev.estado_label;
+      const box = $('#pm-files'); box.innerHTML = '';
+      $('#pm-count').textContent = ev.arquivos.length ? `(${ev.arquivos.length})` : '';
+      if (!ev.arquivos.length) box.append(el('p', 'muted small', D.canEdit ? 'Nenhum arquivo ainda — anexe o boleto abaixo.' : 'Ainda não há arquivos para este pagamento.'));
+      ORDER.forEach(k => {
+        const fl = ev.arquivos.filter(f => f.kind === k); if (!fl.length) return;
+        box.append(el('h5', 'pm-kind', fl[0].kind_label));
+        fl.forEach(f => {
+          const row = el('div', 'pm-file'), a = el('a', '', f.nome); a.href = f.url; a.target = '_blank'; a.rel = 'noopener';
+          row.append(a, el('small', 'muted', f.tamanho + ' · ' + f.data));
+          if (D.canEdit) {
+            const x = el('button', 'icon-btn danger'); x.type = 'button'; x.title = 'Remover arquivo'; x.textContent = '✕';
+            x.addEventListener('click', () => {
+              if (!confirm('Remover "' + f.nome + '"?')) return;
+              const form = el('form'); form.method = 'post';
+              [['csrf', csrf], ['action', 'file_delete'], ['id', f.id], ['return', D.ret + (D.ret.includes('?') ? '&' : '?') + 'abrir=' + encodeURIComponent(key)]].forEach(([n, v]) => { const i = el('input'); i.type = 'hidden'; i.name = n; i.value = v; form.append(i); });
+              document.body.append(form); form.submit();
+            });
+            row.append(x);
+          }
+          box.append(row);
+        });
+      });
+      const up = $('#pm-upload');
+      if (up) { up.elements.billing_id.value = ev.billing_id; up.elements.competencia.value = ev.competencia; up.elements.return.value = D.ret + (D.ret.includes('?') ? '&' : '?') + 'abrir=' + encodeURIComponent(key); up.reset(); }
+      const pay = $('#pm-pay'); if (pay) { pay.hidden = !open; pay.elements.id.value = ev.billing_id; }
+      const ed = $('#pm-edit'); if (ed) ed.hidden = !(open && ev.bill);
+      pm.showModal();
+    };
+    document.addEventListener('click', e => {
+      const b = e.target.closest('[data-payopen]'); if (b) { openPay(b.dataset.payopen); return; }
+      const more = e.target.closest('[data-payday]');
+      if (more) {
+        const d = more.dataset.payday, list = $('#payday-list'); list.innerHTML = '';
+        $('#payday-title').textContent = 'Pagamentos de ' + d.slice(8, 10) + '/' + d.slice(5, 7);
+        Object.values(D.events).filter(x => x.dia === d).forEach(x => {
+          const btn = el('button', 'cal-chip st-' + x.estado); btn.type = 'button'; btn.dataset.payopen = x.key;
+          btn.append(el('span', 'cal-nm', x.cliente + ' · ' + x.descricao), el('time', '', x.valor_fmt)); list.append(btn);
+        });
+        pd.showModal();
+      }
+    });
+    pm.addEventListener('click', e => { if (e.target.closest('[data-edit]')) pm.close(); }, true);
+    const want = new URLSearchParams(location.search).get('abrir');
+    if (want) {   // depois de enviar/remover arquivo, reabre o mesmo pagamento
+      const t = $(`.tab[data-tab="t-bill"]`); if (t && !t.classList.contains('active')) t.click();
+      openPay(want);
+    }
   }
 })();

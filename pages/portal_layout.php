@@ -26,6 +26,7 @@
   <footer class="modal-f"><button type="button" class="btn ghost" data-close>Cancelar</button><button class="btn primary">Alterar</button></footer>
 </form></dialog>
 <script src="<?= asset('assets/js/app.js') ?>"></script>
+<script src="<?= asset('assets/js/work.js') ?>"></script>
 <script>window.BAY_CHAT={api:'portal.php?p=chat_api',unread:<?= (int) $chatUnread ?>}</script>
 <script src="<?= asset('assets/js/chat.js') ?>"></script>
 </body></html>

@@ -54,6 +54,7 @@
   const resetForm = dlg => {
     const f = $('form', dlg); f.reset();
     if (f.elements.id) f.elements.id.value = '';
+    if (f.elements.recorrencia?.type === 'hidden') f.elements.recorrencia.value = '';   // inputs hidden não voltam ao padrão no reset()
     if (f.elements.categoria) f.elements.categoria.value = 'outro';
     $('[data-title]', dlg) && ($('[data-title]', dlg).textContent = $('[data-title]', dlg).dataset.title.split('|')[0]);
     $$('[data-keep]', dlg).forEach(x => x.hidden = true); setCat(dlg, 'outro'); $('details.paste', dlg)?.removeAttribute('open');
@@ -135,9 +136,10 @@
     ['calendario', 'Calendário', 'Planeje as postagens de cada cliente e veja o conteúdo em um clique.'],
     ['pacotes', 'Pacotes', 'Defina o que cada pacote garante por mês (posts, stories, relatórios…).'],
     ['senhas', 'Cofre de senhas', 'Todos os acessos criptografados, com copiar e gerar senha forte.'],
-    ['vencimentos', 'Serviços', 'Redes sociais, campanhas, domínios e hospedagens com alertas em 30, 15 e 7 dias.'],
+    ['pagamentos', 'Pagamentos', 'Calendário dos pagamentos dos clientes: anexe boleto e quitação e acompanhe o que está em aberto ou pago.'],
+    ['vencimentos', 'Vencimentos', 'Contas internas da Bay Groups com alertas em 30, 15 e 7 dias.'],
     ['relatorios', 'Relatórios', 'Financeiro e tarefas em relatórios separados, com PDF e Excel.'],
-    ['links', 'Pastas & Links', 'Drive, Canva e Google Agenda de cada cliente.'],
+    ['links', 'Pastas & Links', 'Drive, Canva e Agenda de cada cliente, junto com as tarefas em aberto dele.'],
     ['usuarios', 'Equipe', 'Crie administradores, designers e devs.'],
     ['config', 'Configurações', 'Ligue os alertas por e-mail e WhatsApp e configure o cron.'],
     ['guia', 'Guia', 'Volte aqui sempre que precisar do passo a passo.'],
@@ -156,6 +158,6 @@
   $('#tourNext')?.addEventListener('click', () => { if (idx >= steps.length - 1) end(); else { idx++; show(); } });
   $('#tourSkip')?.addEventListener('click', end);
   $('#startTour')?.addEventListener('click', start); $('#startTour2')?.addEventListener('click', start);
-  window.addEventListener('resize', () => !tour.hidden && show());
+  window.addEventListener('resize', () => tour && !tour.hidden && show());
   if (/[?&]welcome=1/.test(location.search) && store.get('bay-tour') !== 'done') setTimeout(start, 700);
 })();

@@ -2,12 +2,23 @@
 $today = date('Y-m-d');
 $nClients = (int) val("SELECT COUNT(*) FROM clients WHERE status = 'ativo'");
 $nCreds = (int) val('SELECT COUNT(*) FROM credentials');
-$n30 = (int) val("SELECT COUNT(*) FROM billings WHERE status='pendente' AND vencimento >= ? AND vencimento <= ?", [$today, date('Y-m-d', strtotime('+30 day'))]);
-$nOver = (int) val("SELECT COUNT(*) FROM billings WHERE status='pendente' AND vencimento < ?", [$today]);
-$sum30 = (float) val("SELECT COALESCE(SUM(valor),0) FROM billings WHERE status='pendente' AND vencimento <= ?", [date('Y-m-d', strtotime('+30 day'))]);
-$upcoming = rows("SELECT b.*, c.nome AS cliente FROM billings b JOIN clients c ON c.id=b.client_id WHERE b.status='pendente' ORDER BY b.vencimento LIMIT 6");
+$plus30 = date('Y-m-d', strtotime('+30 day'));
+$canInt = can('billing.edit'); $canPay = can('billing.view');
+$intOpen = $canInt ? rows("SELECT * FROM internal_bills WHERE status = 'pendente' ORDER BY vencimento") : [];
+$nInt30 = count(array_filter($intOpen, fn($b) => $b['vencimento'] <= $plus30));
+$nIntOver = count(array_filter($intOpen, fn($b) => $b['vencimento'] < $today));
+$sumInt30 = array_sum(array_map(fn($b) => (float) $b['valor'], array_filter($intOpen, fn($b) => $b['vencimento'] <= $plus30)));
+$cyc = $canPay ? cycle_open_events(null) : [];
+$nCliOver = count(array_filter($cyc, fn($e) => $e['estado'] === 'atrasado'));
+$sumCli = array_sum(array_map(fn($e) => (float) $e['valor'], $cyc));
+$nOver = $nIntOver + $nCliOver;
+$n30 = $nInt30 + count(array_filter($cyc, fn($e) => $e['dia'] <= $plus30 && $e['estado'] !== 'atrasado'));
 $recentLinks = rows('SELECT l.*, c.nome AS cliente FROM links l LEFT JOIN clients c ON c.id=l.client_id ORDER BY l.id DESC LIMIT 4');
-$recentAlerts = rows("SELECT a.*, b.descricao FROM alert_log a JOIN billings b ON b.id=a.billing_id ORDER BY a.id DESC LIMIT 5");
+$recentAlerts = array_merge(
+    rows("SELECT a.canal, a.marco, a.status, a.enviado_em, b.descricao FROM alert_log a JOIN billings b ON b.id = a.billing_id ORDER BY a.id DESC LIMIT 5"),
+    rows("SELECT a.canal, a.marco, a.status, a.enviado_em, b.descricao FROM internal_alert_log a JOIN internal_bills b ON b.id = a.bill_id ORDER BY a.id DESC LIMIT 5"));
+usort($recentAlerts, fn($x, $y) => strcmp($y['enviado_em'], $x['enviado_em']));
+$recentAlerts = array_slice($recentAlerts, 0, 5);
 $myTasks = task_sort(rows(TASK_SELECT . " WHERE t.assignee_id = ? AND t.status <> 'feito'", [$me['id']]));
 $nMyOver = count(array_filter($myTasks, fn($t) => $t['prazo'] && $t['prazo'] < $today));
 $ret = url('dashboard');
@@ -23,8 +34,10 @@ $greet = $hour < 12 ? 'Bom dia' : ($hour < 18 ? 'Boa tarde' : 'Boa noite');
 </section>
 
 <section class="grid stats">
-  <?php foreach ([['Clientes ativos', $nClients, 'briefcase', 'clientes', 0], ['Acessos guardados', $nCreds, 'key', 'senhas', 0],
-    ['Vencem em 30 dias', $n30, 'calendar', 'vencimentos', 0], ['Em atraso', $nOver, 'bell', 'vencimentos', $nOver ? 1 : 0]] as $i => [$l, $v, $ic, $to, $alert]): ?>
+  <?php $stats = [['Clientes ativos', $nClients, 'briefcase', 'clientes', 0], ['Acessos guardados', $nCreds, 'key', 'senhas', 0]];
+  if ($canInt) $stats[] = ['Vencimentos internos (30 dias)', $nInt30, 'wallet', 'vencimentos', $nIntOver ? 1 : 0];
+  if ($canPay) $stats[] = ['Pagamentos de clientes em aberto', count($cyc), 'card', 'pagamentos', $nCliOver ? 1 : 0];
+  foreach ($stats as $i => [$l, $v, $ic, $to, $alert]): ?>
     <a href="<?= url($to) ?>" class="card stat tilt anim-up <?= $alert ? 'alert' : '' ?>" style="--i:<?= $i ?>">
       <span class="stat-ico"><?= icon($ic, 22) ?></span><b class="count" data-to="<?= $v ?>">0</b><small><?= e($l) ?></small></a>
   <?php endforeach; ?>
@@ -38,13 +51,24 @@ $greet = $hour < 12 ? 'Bom dia' : ($hour < 18 ? 'Boa tarde' : 'Boa noite');
 
 <div class="split">
   <section>
-    <div class="sec-h"><h3>Próximos vencimentos</h3><a href="<?= url('vencimentos') ?>" class="link">Ver todos →</a></div>
-    <?php if (!$upcoming): echo empty_state('calendar', 'Nenhum vencimento pendente', 'Cadastre domínios, hospedagens e contas para receber alertas.'); endif; ?>
-    <div class="stack-cards"><?php foreach ($upcoming as $i => $b): ?><div class="anim-up" style="--i:<?= $i ?>"><?php render_bill_card($b, true, $ret); ?></div><?php endforeach; ?></div>
+    <?php if ($canInt): ?>
+    <div class="sec-h"><h3>Vencimentos internos da Bay Groups</h3><a href="<?= url('vencimentos') ?>" class="link">Ver todos →</a></div>
+    <?php if (!$intOpen) echo empty_state('wallet', 'Nenhum vencimento interno', 'Cadastre hospedagem, domínios, ferramentas e impostos da empresa para receber alertas.'); ?>
+    <div class="stack-cards"><?php foreach (array_slice($intOpen, 0, 4) as $i => $b): ?><div class="anim-up" style="--i:<?= $i ?>"><?php render_ibill_card($b, $ret); ?></div><?php endforeach; ?></div>
+    <?php endif; ?>
+    <?php if ($canPay): ?>
+    <div class="sec-h"><h3>Pagamentos de clientes</h3><a href="<?= url('pagamentos') ?>" class="link">Calendário de pagamentos →</a></div>
+    <?php if (!$cyc) echo empty_state('card', 'Nenhum pagamento em aberto', 'Cadastre os serviços dentro de cada cliente (aba Pagamentos).'); ?>
+    <div class="stack-cards"><?php foreach (array_slice($cyc, 0, 4) as $i => $ev): ?><div class="anim-up" style="--i:<?= $i ?>"><?php render_cycle_card($ev, $ret, false, true); ?></div><?php endforeach; ?></div>
+    <?php endif; ?>
   </section>
   <section>
-    <div class="sec-h"><h3>Previsão 30 dias</h3></div>
-    <div class="card money tilt anim-up"><small class="muted">Total a pagar</small><b><?= fmt_money($sum30) ?></b><span class="bar"><i style="width:<?= $n30 + $nOver ? min(100, ($nOver ? 100 : 40 + $n30 * 8)) : 0 ?>%"></i></span></div>
+    <?php if ($canInt || $canPay): ?>
+    <div class="sec-h"><h3>Próximos 30 dias</h3></div>
+    <div class="card money tilt anim-up">
+      <?php if ($canInt): ?><small class="muted">A pagar (Bay Groups)</small><b><?= fmt_money($sumInt30) ?></b><?php endif; ?>
+      <?php if ($canPay): ?><small class="muted">Pagamentos de clientes em aberto</small><b><?= fmt_money($sumCli) ?></b><?php endif; ?></div>
+    <?php endif; ?>
     <div class="sec-h"><h3>Links recentes</h3><a href="<?= url('links') ?>" class="link">Ver todos →</a></div>
     <div class="stack-cards"><?php foreach ($recentLinks as $l) render_link_card($l, $ret); if (!$recentLinks) echo '<p class="muted">Nenhum link ainda.</p>'; ?></div>
     <div class="sec-h"><h3>Últimos alertas</h3></div>
@@ -54,4 +78,6 @@ $greet = $hour < 12 ? 'Bom dia' : ($hour < 18 ? 'Boa tarde' : 'Boa noite');
     <?php endforeach; if (!$recentAlerts) echo '<p class="muted">Nenhum alerta enviado ainda.</p>'; ?></div>
   </section>
 </div>
-<?php dlg_task(null, $ret); ?>
+<?php dlg_task(null, $ret); dlg_task_view($ret);
+if ($canInt) dlg_ibill($ret);
+if ($canPay) { dlg_bill(null, $ret); pay_dialogs($ret); } ?>
