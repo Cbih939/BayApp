@@ -138,15 +138,17 @@
       if (p.midia_url && IMG.test(p.midia_url)) { const i = el('img'); i.src = p.midia_url; i.alt = 'Arte do post'; i.loading = 'lazy'; i.referrerPolicy = 'no-referrer'; m.append(i); }
       else if (p.midia_url) { const a = el('a', 'pv-ph', ''); a.href = p.midia_url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.append(el('b', '', 'Abrir arte'), el('small', 'muted', p.midia_url.replace(/^https?:\/\/(www\.)?/, '').slice(0, 50))); m.append(a); }
       else m.append(el('div', 'pv-ph none', 'Nenhuma arte anexada'));
-      $('#pv-i-canal').textContent = `${p.canal_label} — ${p.formato_label}`;
-      $('#pv-i-status').textContent = 'Status: ' + p.status_label;
-      $('#pv-i-when').textContent = (p.status === 'publicado' ? 'Publicado em ' + fmtDT(p.publicado_em) : 'Programado para ' + p.dia_fmt + (p.hora ? ' às ' + p.hora : ''));
-      $('#pv-i-by').textContent = 'Criado em ' + fmtDT(p.criado_em) + (p.autor ? ' por ' + p.autor : '');
+      const li1 = $('#pv-i-canal'); li1.innerHTML = ''; li1.append(el('i', 'chb ch-' + p.canal, p.sigla), el('span', '', `${p.canal_label} — ${p.formato_label}`));
+      const li2 = $('#pv-i-status'); li2.innerHTML = ''; li2.className = 'ps-' + p.status; li2.append(el('i', 'pst ps-' + p.status), el('span', '', p.status_label));
+      const li3 = $('#pv-i-created'); li3.innerHTML = ''; li3.append(el('i', 'pv-ic', '★'), el('span', '', 'Criado em ' + fmtDT(p.criado_em) + (p.autor ? ' por ' + p.autor : '')));
+      const li4 = $('#pv-i-when'); li4.innerHTML = ''; li4.className = p.status === 'concluido' ? 'ok' : '';
+      li4.append(el('i', 'pv-ic', p.status === 'concluido' ? '✓' : '◷'), el('span', '', p.status === 'concluido' ? 'Publicado em ' + fmtDT(p.publicado_em) : 'Programado para ' + p.dia_fmt + (p.hora ? ' às ' + p.hora : '')));
       const h = $('#pv-hist'); h.innerHTML = '';
       [['Criado' + (p.autor ? ' por ' + p.autor : ''), p.criado_em], p.atualizado_em && p.atualizado_em !== p.criado_em ? ['Última edição', p.atualizado_em] : null, p.publicado_em ? ['Publicado', p.publicado_em] : null]
         .filter(Boolean).forEach(([t, d]) => { const li = el('li'); li.append(el('b', '', t), el('small', 'muted', fmtDT(d))); h.append(li); });
       $$('[data-pv]', pv).forEach(b => b.classList.toggle('active', b.dataset.pv === 'preview')); $$('.pv-pane', pv).forEach(x => x.hidden = x.dataset.pane !== 'preview');
-      const pub = $('#pv-pub'); if (pub) { pub.elements.id.value = p.id; pub.hidden = p.status === 'publicado'; }
+      const pub = $('#pv-pub'); if (pub) { pub.elements.id.value = p.id; pub.hidden = p.status === 'concluido'; }
+      const stf = $('#pv-status'); if (stf) { stf.elements.id.value = p.id; stf.elements.status.value = p.status; }
       const del = $('#pv-del'); if (del) del.elements.id.value = p.id;
       pv.showModal();
     };
@@ -171,7 +173,7 @@
     });
     $('#pv-clone')?.addEventListener('click', () => {
       const p = JSON.parse($('#pv-item').dataset.item); pv.close();
-      openNew({ client_id: p.client_id, dia: p.dia, hora: p.hora || '', canal: p.canal, formato: p.formato, titulo: p.titulo ? p.titulo + ' (cópia)' : '', legenda: p.legenda, midia_url: p.midia_url, status: 'planejado' });
+      openNew({ client_id: p.client_id, dia: p.dia, hora: p.hora || '', canal: p.canal, formato: p.formato, titulo: p.titulo ? p.titulo + ' (cópia)' : '', legenda: p.legenda, midia_url: p.midia_url, status: 'rascunho' });
     });
     pv.addEventListener('click', e => { if (e.target.closest('[data-edit]')) pv.close(); }, true);
   }

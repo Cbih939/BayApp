@@ -165,7 +165,7 @@ function schema_sql(string $driver): array
         "CREATE TABLE IF NOT EXISTS posts (
             id $pk, client_id INT NOT NULL, dia VARCHAR(10) NOT NULL, hora VARCHAR(5) NULL, canal VARCHAR(12) NOT NULL,
             formato VARCHAR(12) NOT NULL DEFAULT 'post', titulo VARCHAR(200) NULL, legenda TEXT NULL, midia_url VARCHAR(700) NULL,
-            status VARCHAR(10) NOT NULL DEFAULT 'planejado', publicado_em VARCHAR(19) NULL, criado_por INT NULL,
+            status VARCHAR(10) NOT NULL DEFAULT 'rascunho', publicado_em VARCHAR(19) NULL, criado_por INT NULL,
             criado_em VARCHAR(19) NOT NULL, atualizado_em VARCHAR(19) NOT NULL,
             FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE){$eng}",
         "CREATE TABLE IF NOT EXISTS payments (
@@ -217,7 +217,7 @@ function schema_sql(string $driver): array
     return $t;
 }
 
-const SCHEMA_VERSION = '7';
+const SCHEMA_VERSION = '8';
 
 /** Atualiza instalações antigas (cria tabelas novas) uma única vez. */
 function ensure_schema(): void
@@ -227,6 +227,7 @@ function ensure_schema(): void
     $v = (int) setting('schema_v', '0');
     if ($v < 6) backfill_payments();
     if ($v < 7) backfill_payment_dates();
+    if ($v < 8) migrate_post_status();
     set_setting('schema_v', SCHEMA_VERSION);
 }
 
