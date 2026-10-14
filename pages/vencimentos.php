@@ -20,7 +20,7 @@ $paid = $st === 'pago' ? rows('SELECT p.*, b.descricao, b.categoria, b.fornecedo
 <section class="grid stats">
   <?php foreach ([['Vencem em 7 dias', $n7, 'bell', 0], ['A pagar em 30 dias', fmt_money($sum30), 'wallet', 0], ['Em atraso', count($over), 'calendar', count($over) ? 1 : 0], ['Custo mensal fixo', fmt_money($month), 'card', 0]] as $i => [$l, $v, $ic, $al]): ?>
     <div class="card stat anim-up <?= $al ? 'alert' : '' ?>" style="--i:<?= $i ?>"><span class="stat-ico"><?= icon($ic, 22) ?></span>
-      <?php if (is_int($v)): ?><b class="count" data-to="<?= $v ?>">0</b><?php else: ?><b style="font-size:1.5rem"><?= e($v) ?></b><?php endif; ?><small><?= e($l) ?></small></div>
+      <?php if (is_int($v)): ?><b class="count" data-to="<?= $v ?>">0</b><?php else: ?><b class="num-money"><?= e($v) ?></b><?php endif; ?><small><?= e($l) ?></small></div>
   <?php endforeach; ?>
 </section>
 

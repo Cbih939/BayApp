@@ -234,13 +234,14 @@ function render_paycal(?int $client, array $pairs, bool $portal = false, string 
           <div class="cal-dh"><span class="cal-dn"><?= (int) substr($d, 8, 2) ?></span></div>
           <?php foreach (array_slice($list, 0, 3) as $e): ?>
             <button type="button" class="cal-chip st-<?= e($e['estado']) ?>" data-payopen="<?= e($e['key']) ?>" title="<?= e($e['cliente'] . ' · ' . $e['descricao'] . ' · ' . $e['estado_label']) ?>">
-              <span class="cal-nm"><?= e($client ? $e['descricao'] : explode(' ', $e['cliente'])[0]) ?></span>
-              <time><?= $e['valor'] === null ? '—' : e(preg_replace('/,00$/', '', str_replace('R$ ', '', $e['valor_fmt']))) ?></time>
-              <?= $e['arquivos'] ? icon('clip', 11) : '' ?><?= match ($e['estado']) {
+              <span class="cc-top"><b class="cc-val"><?= $e['valor'] === null ? 'a definir' : e(preg_replace('/,00$/', '', str_replace('R$ ', '', $e['valor_fmt']))) ?></b><?= $e['arquivos'] ? icon('clip', 11) : '' ?><?= match ($e['estado']) {
                   'pago' => '<i class="pst pst-ok">' . icon('check', 11) . '</i>', 'atrasado' => '<i class="pst pst-no">' . icon('x', 11) . '</i>',
-                  'previsto' => '<i class="pst pst-fu">·</i>', default => '<i class="pst pst-pl">' . icon('clock', 11) . '</i>' } ?></button>
+                  'previsto' => '<i class="pst pst-fu">·</i>', default => '<i class="pst pst-pl">' . icon('clock', 11) . '</i>' } ?></span>
+              <span class="cc-nm"><?= e($client ? $e['descricao'] : explode(' ', $e['cliente'])[0] . ' · ' . $e['descricao']) ?></span></button>
           <?php endforeach; ?>
           <?php if (count($list) > 3): ?><button type="button" class="cal-more" data-payday="<?= $d ?>">+<?= count($list) - 3 ?> mais…</button><?php endif; ?>
+          <button type="button" class="cal-hit" data-payday="<?= $d ?>" aria-label="Ver os pagamentos de <?= fmt_date($d) ?>"></button>
+          <?php if ($list): ?><span class="cal-dots" aria-hidden="true"><?php foreach (array_slice($list, 0, 4) as $e): ?><i class="cal-dot dot-<?= e($e['estado']) ?>"></i><?php endforeach; ?><?php if (count($list) > 4): ?><b>+<?= count($list) - 4 ?></b><?php endif; ?></span><?php endif; ?>
         </div>
       <?php endfor; ?>
     </div></div>

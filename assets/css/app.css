@@ -360,3 +360,32 @@ body.portal{min-height:100vh}
 .tmini{padding:12px 14px;cursor:pointer}.tmini h4{white-space:normal;font-size:.95rem}.tmini .chips{margin-top:6px}
 .tv-links{margin:0 0 4px}
 button.pill{background:transparent;font:inherit;cursor:pointer}.sec-h .btn{white-space:nowrap}
+
+/* ---------- calendários (postagem e pagamentos): sempre cabem na tela ---------- */
+.cal{min-width:0;grid-template-columns:repeat(7,minmax(0,1fr))}
+.cal-day{min-height:146px;min-width:0}
+.cal-chip{flex-direction:column;align-items:stretch;gap:3px;padding:5px 7px}
+.cc-top{display:flex;align-items:center;gap:6px;min-width:0}
+.cc-top time{margin-right:auto;font-size:.72rem}.cc-val{margin-right:auto;font-size:.8rem;white-space:nowrap}
+.cc-nm{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.74rem;color:var(--text)}
+.cal-chip.cal-row{flex-direction:row;align-items:center;gap:8px;padding:9px 11px;font-size:.85rem}
+.cal-chip.cal-row .cal-nm{white-space:normal}
+.cal-hit,.cal-dots{display:none}
+.dot-publicado,.dot-pago{background:var(--ok)}.dot-aprovado{background:var(--purple)}.dot-planejado,.dot-aberto{background:var(--warn)}.dot-cancelado,.dot-atrasado{background:var(--bad)}.dot-previsto{background:var(--muted)}
+.stat b.num-money{white-space:nowrap;font-size:clamp(1.1rem,4.4vw,1.5rem)}
+.day-add{margin-top:6px;align-self:flex-start}
+
+@media (max-width:760px){
+  /* celular: grade compacta com pontos coloridos; tocar no dia abre a lista */
+  .cal-wrap{overflow:visible}
+  .cal-wd{padding:8px 0;text-align:center;font-size:.66rem}
+  .cal-day{min-height:62px;padding:4px 2px;align-items:center;gap:2px}
+  .cal-dh{justify-content:center;width:100%;min-height:24px}.cal-dn{margin:0;order:0;font-size:.78rem}
+  .cal .cal-chip,.cal .cal-more,.cal .cal-add{display:none}
+  .cal-hit{display:block;position:absolute;inset:0;width:100%;border:none;background:transparent;cursor:pointer;z-index:2}
+  .cal-hit:active{background:rgba(139,92,246,.18)}
+  .cal-dots{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:3px;max-width:100%}
+  .cal-dot{width:7px;height:7px;border-radius:50%;display:block}.cal-dots b{font-size:.58rem;color:var(--muted);line-height:1}
+  .cal-nav h3{min-width:0;font-size:1.1rem}
+  .cal-sum .legend{display:flex;margin-top:4px}
+}

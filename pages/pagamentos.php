@@ -12,7 +12,7 @@ $noBoleto = count(array_filter($open, fn($e) => !array_filter($e['arquivos'], fn
   <?php foreach ([['Em aberto', count($open), 'card', 0], ['Atrasados', $over, 'bell', $over ? 1 : 0], ['Sem boleto anexado', $noBoleto, 'clip', 0]] as $i => [$l, $v, $ic, $al]): ?>
     <div class="card stat anim-up <?= $al ? 'alert' : '' ?>" style="--i:<?= $i ?>"><span class="stat-ico"><?= icon($ic, 22) ?></span><b class="count" data-to="<?= $v ?>">0</b><small><?= e($l) ?></small></div>
   <?php endforeach; ?>
-  <div class="card stat anim-up" style="--i:3"><span class="stat-ico"><?= icon('wallet', 22) ?></span><b style="font-size:1.5rem"><?= e(fmt_money($sumOpen)) ?></b><small>Total em aberto</small></div>
+  <div class="card stat anim-up" style="--i:3"><span class="stat-ico"><?= icon('wallet', 22) ?></span><b class="num-money"><?= e(fmt_money($sumOpen)) ?></b><small>Total em aberto</small></div>
 </section>
 <form class="filters" method="get"><input type="hidden" name="p" value="pagamentos"><input type="hidden" name="pm" value="<?= e(paycal_filters($_GET)['pm']) ?>">
   <select name="cliente" onchange="this.form.submit()"><option value="">Todos os clientes</option>

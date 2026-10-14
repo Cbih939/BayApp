@@ -121,6 +121,7 @@
     const IMG = /\.(png|jpe?g|gif|webp|avif)(\?.*)?$/i;
 
     const openNew = (pref = {}) => {
+      dlgDay?.close();
       const f = $('form', dlgPost); f.reset(); f.elements.id.value = '';
       $('[data-title]', dlgPost).textContent = $('[data-title]', dlgPost).dataset.title.split('|')[0];
       Object.entries(pref).forEach(([k, v]) => { if (f.elements[k] && v != null) f.elements[k].value = v; });
@@ -156,10 +157,13 @@
       if (more) {
         const d = more.dataset.day, list = $('#day-list'); list.innerHTML = '';
         $('#day-title').textContent = 'Posts de ' + d.slice(8, 10) + '/' + d.slice(5, 7);
-        posts.filter(p => p.dia === d).forEach(p => {
-          const b = el('button', 'cal-chip st-' + p.status); b.type = 'button'; b.dataset.post = p.id;
+        const day = posts.filter(p => p.dia === d);
+        if (!day.length) list.append(el('p', 'muted', 'Nenhum post neste dia.'));
+        day.forEach(p => {
+          const b = el('button', 'cal-chip cal-row st-' + p.status); b.type = 'button'; b.dataset.post = p.id;
           b.append(el('i', 'chb ch-' + p.canal, p.sigla), el('span', 'cal-nm', (client ? '' : p.cliente + ' · ') + (p.titulo || p.formato_label)), el('time', '', p.hora || '')); list.append(b);
         });
+        if ($('.cal')?.dataset.canEdit === '1') { const a = el('button', 'btn ghost sm day-add', '+ Adicionar post neste dia'); a.type = 'button'; a.dataset.newpost = d; list.append(a); }
         dlgDay.showModal(); return;
       }
       const tab = e.target.closest('[data-pv]');
@@ -231,8 +235,10 @@
       if (more) {
         const d = more.dataset.payday, list = $('#payday-list'); list.innerHTML = '';
         $('#payday-title').textContent = 'Pagamentos de ' + d.slice(8, 10) + '/' + d.slice(5, 7);
-        Object.values(D.events).filter(x => x.dia === d).forEach(x => {
-          const btn = el('button', 'cal-chip st-' + x.estado); btn.type = 'button'; btn.dataset.payopen = x.key;
+        const day = Object.values(D.events).filter(x => x.dia === d);
+        if (!day.length) list.append(el('p', 'muted', 'Nenhum pagamento neste dia.'));
+        day.forEach(x => {
+          const btn = el('button', 'cal-chip cal-row st-' + x.estado); btn.type = 'button'; btn.dataset.payopen = x.key;
           btn.append(el('span', 'cal-nm', x.cliente + ' · ' + x.descricao), el('time', '', x.valor_fmt)); list.append(btn);
         });
         pd.showModal();

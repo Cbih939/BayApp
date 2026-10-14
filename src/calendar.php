@@ -92,12 +92,13 @@ function render_calendar(?int $client, array $pairs): string
           <div class="cal-dh"><span class="cal-dn"><?= (int) substr($d, 8, 2) ?></span>
             <?php if ($canEdit): ?><button type="button" class="cal-add" data-newpost="<?= $d ?>" title="Adicionar post em <?= fmt_date($d) ?>"><?= icon('plus', 13) ?> Adicionar</button><?php endif; ?></div>
           <?php foreach (array_slice($list, 0, 3) as $p): ?>
-            <button type="button" class="cal-chip st-<?= e($p['status']) ?>" data-post="<?= (int) $p['id'] ?>" title="<?= e($p['cliente'] . ' · ' . $p['canal_label'] . ' · ' . $p['formato_label']) ?>">
-              <i class="chb ch-<?= e($p['canal']) ?>"><?= e($p['sigla']) ?></i>
-              <span class="cal-nm"><?= e($client ? ($p['titulo'] ?: $p['formato_label']) : explode(' ', $p['cliente'])[0]) ?></span>
-              <time><?= e($p['hora'] ?: '') ?></time><?= post_status_icon($p['status']) ?></button>
+            <button type="button" class="cal-chip st-<?= e($p['status']) ?>" data-post="<?= (int) $p['id'] ?>" title="<?= e($p['cliente'] . ' · ' . $p['canal_label'] . ' · ' . $p['formato_label'] . ($p['titulo'] ? ' · ' . $p['titulo'] : '')) ?>">
+              <span class="cc-top"><i class="chb ch-<?= e($p['canal']) ?>"><?= e($p['sigla']) ?></i><time><?= e($p['hora'] ?: '') ?></time><?= post_status_icon($p['status']) ?></span>
+              <span class="cc-nm"><?= e($client ? ($p['titulo'] ?: $p['formato_label']) : explode(' ', $p['cliente'])[0] . ($p['titulo'] ? ' · ' . $p['titulo'] : '')) ?></span></button>
           <?php endforeach; ?>
           <?php if (count($list) > 3): ?><button type="button" class="cal-more" data-day="<?= $d ?>">+<?= count($list) - 3 ?> mais…</button><?php endif; ?>
+          <button type="button" class="cal-hit" data-day="<?= $d ?>" aria-label="Ver os posts de <?= fmt_date($d) ?>"></button>
+          <?php if ($list): ?><span class="cal-dots" aria-hidden="true"><?php foreach (array_slice($list, 0, 4) as $p): ?><i class="cal-dot dot-<?= e($p['status']) ?>"></i><?php endforeach; ?><?php if (count($list) > 4): ?><b>+<?= count($list) - 4 ?></b><?php endif; ?></span><?php endif; ?>
         </div>
       <?php endfor; ?>
     </div></div>
