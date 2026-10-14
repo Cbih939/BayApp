@@ -44,8 +44,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?><!doctype html>
 <html lang="pt-BR" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Instalação — BayApp</title><link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png"><link rel="stylesheet" href="<?= asset('assets/css/app.css') ?>"></head>
-<body class="auth-body"><div class="blob b1"></div><div class="blob b2"></div>
+<title>Instalação — BayApp</title><link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png"><?= inline_css() ?></head>
+<body class="auth-body"><?= css_stale_banner() ?><div class="blob b1"></div><div class="blob b2"></div>
 <main class="auth-card wide anim-up">
 <?php if (!empty($done)): ?>
   <div class="brand big"><?= brand_logo() ?></div>

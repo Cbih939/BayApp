@@ -160,22 +160,4 @@
   $('#startTour')?.addEventListener('click', start); $('#startTour2')?.addEventListener('click', start);
   window.addEventListener('resize', () => tour && !tour.hidden && show());
   if (/[?&]welcome=1/.test(location.search) && store.get('bay-tour') !== 'done') setTimeout(start, 700);
-
-  /* sonda do CSS: se o app.css do servidor/navegador estiver velho ou truncado, tenta recarregar e, se não resolver, avisa com o tamanho */
-  (() => {
-    const link = $('link[rel=stylesheet][href*="app.css"]'); if (!link) return;
-    const t = document.createElement('i'); t.className = 'css-probe'; document.body.append(t);
-    const ok = getComputedStyle(t).getPropertyValue('--bay-css').trim() === 'ok'; t.remove();
-    if (ok) { try { sessionStorage.removeItem('bay-css-retry'); } catch (e) {} return; }
-    let tried = false; try { tried = !!sessionStorage.getItem('bay-css-retry'); sessionStorage.setItem('bay-css-retry', '1'); } catch (e) {}
-    if (!tried) { fetch(link.href, { cache: 'reload' }).catch(() => {}).finally(() => location.reload()); return; }
-    const want = +($('meta[name=css-size]')?.content || 0);
-    fetch(link.href, { cache: 'no-store' }).then(r => r.blob()).then(b => b.size).catch(() => 0).then(got => {
-      const bar = document.createElement('div');
-      bar.setAttribute('style', 'position:fixed;left:0;right:0;top:0;z-index:9999;padding:12px 16px;background:#7c3aed;color:#fff;font:600 14px/1.4 system-ui,sans-serif;text-align:center');
-      bar.textContent = 'O visual do app está desatualizado neste navegador ou servidor. Pressione Ctrl+F5. Se continuar, no painel da hospedagem limpe o cache e confira se assets/css/app.css foi enviado por completo'
-        + (want ? ` (esperado: ${want} bytes; recebido: ${got || '?'} bytes).` : '.');
-      document.body.prepend(bar);
-    });
-  })();
 })();

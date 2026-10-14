@@ -59,7 +59,7 @@ $ret = url('tarefas', array_filter($base, fn($v) => $v !== '' && $v !== 0));
   </section>
   <?php endforeach; ?>
 </div>
-<script src="<?= asset('assets/js/tasks.js') ?>"></script>
+<?= inline_js('assets/js/tasks.js') ?>
 <?php elseif ($list): ?>
 <?php $flat = array_merge(...array_map(fn($s) => $cols[$s], ['a_fazer', 'fazendo', 'revisao'])); $flat = array_merge($flat, rows_all_done($list)); ?>
 <div class="grid cards wide"><?php foreach ($flat as $i => $t): ?><div class="anim-up" style="--i:<?= min($i, 8) ?>"><?php render_task_card($t, $ret); ?></div><?php endforeach; ?></div>
