@@ -28,14 +28,10 @@ function cal_posts(string $from, string $to, ?int $client, array $f): array
     return $out;
 }
 
+/** Bolinha colorida com o ícone do status (cor em .ps-<status>). */
 function post_status_icon(string $st): string
 {
-    return match ($st) {
-        'publicado' => '<i class="pst pst-ok" title="Publicado">' . icon('check', 11) . '</i>',
-        'aprovado' => '<i class="pst pst-ap" title="Aprovado">' . icon('check', 11) . '</i>',
-        'cancelado' => '<i class="pst pst-no" title="Cancelado">' . icon('x', 11) . '</i>',
-        default => '<i class="pst pst-pl" title="Planejado">' . icon('clock', 11) . '</i>',
-    };
+    return '<i class="pst ps-' . e($st) . '" title="' . e(POST_STATUS[$st] ?? $st) . '">' . icon(POST_STATUS_ICON[$st] ?? 'clock', 10) . '</i>';
 }
 
 /**
@@ -62,8 +58,21 @@ function render_calendar(?int $client, array $pairs): string
     $today = date('Y-m-d');
     $canEdit = can('posts.edit');
     $inMonth = array_filter($posts, fn($p) => substr($p['dia'], 0, 7) === $f['m']);
-    $nPub = count(array_filter($inMonth, fn($p) => $p['status'] === 'publicado'));
+    $nDone = count(array_filter($inMonth, fn($p) => $p['status'] === 'concluido'));
+    // faixa do fluxo de conteúdo: contagem do mês por status (respeita cliente e canal; ignora o filtro de status)
+    $cnt = array_fill_keys(array_keys(POST_STATUS), 0);
+    foreach (rows('SELECT status, COUNT(*) n FROM posts WHERE dia >= ? AND dia <= ?' . ($client ? ' AND client_id = ?' : '') . ($f['canal'] ? ' AND canal = ?' : '') . ' GROUP BY status',
+        array_values(array_filter([$first, date('Y-m-t', strtotime($first)), $client ?: null, $f['canal'] ?: null], fn($v) => $v !== null))) as $r) {
+        $cnt[$r['status']] = (int) $r['n'];
+    }
     ?>
+    <div class="ps-strip" role="group" aria-label="Fluxo do conteúdo">
+      <?php foreach (POST_STATUS as $k => $label): if ($k === 'cancelado') continue; ?>
+        <a class="ps-card ps-<?= $k ?> <?= $f['pst'] === $k ? 'on' : '' ?>" href="<?= e($link(['pst' => $f['pst'] === $k ? '' : $k])) ?>" title="<?= $f['pst'] === $k ? 'Mostrar todos' : 'Filtrar: ' . e($label) ?>">
+          <span class="ps-top"><span class="ps-ico"><?= icon(POST_STATUS_ICON[$k], 16) ?></span><em class="ps-n"><?= $cnt[$k] ?></em></span>
+          <span class="ps-lab"><?= e($label) ?></span></a>
+      <?php endforeach; ?>
+    </div>
     <div class="cal-bar">
       <div class="cal-nav">
         <a class="icon-btn" href="<?= e($link(['m' => $prev])) ?>" title="Mês anterior"><?= icon('chevl') ?></a>
@@ -73,14 +82,15 @@ function render_calendar(?int $client, array $pairs): string
       </div>
       <form class="cal-filters" method="get">
         <?php foreach (array_merge($pairs, ['m' => $f['m']]) as $k => $v): ?><input type="hidden" name="<?= e($k) ?>" value="<?= e($v) ?>"><?php endforeach; ?>
-        <select name="canal" onchange="this.form.submit()"><option value="">Todos os canais</option>
-          <?php foreach (POST_CHANNELS as $k => $v): ?><option value="<?= $k ?>" <?= $f['canal'] === $k ? 'selected' : '' ?>><?= e($v[0]) ?></option><?php endforeach; ?></select>
-        <select name="pst" onchange="this.form.submit()"><option value="">Todos os status</option>
-          <?php foreach (POST_STATUS as $k => $v): ?><option value="<?= $k ?>" <?= $f['pst'] === $k ? 'selected' : '' ?>><?= e($v) ?></option><?php endforeach; ?></select>
+        <label class="fpill <?= $f['pst'] ? 'on' : '' ?>"><?= icon('tasks', 15) ?><select name="pst" onchange="this.form.submit()" aria-label="Status"><option value="">Status</option>
+          <?php foreach (POST_STATUS as $k => $v): ?><option value="<?= $k ?>" <?= $f['pst'] === $k ? 'selected' : '' ?>><?= e($v) ?></option><?php endforeach; ?></select></label>
+        <label class="fpill <?= $f['canal'] ? 'on' : '' ?>"><?= icon('link', 15) ?><select name="canal" onchange="this.form.submit()" aria-label="Canais"><option value="">Canais</option>
+          <?php foreach (POST_CHANNELS as $k => $v): ?><option value="<?= $k ?>" <?= $f['canal'] === $k ? 'selected' : '' ?>><?= e($v[0]) ?></option><?php endforeach; ?></select></label>
+        <?php if ($f['pst'] || $f['canal']): ?><a class="fpill on" href="<?= e($link(['pst' => '', 'canal' => ''])) ?>">Limpar filtros <?= icon('x', 13) ?></a><?php endif; ?>
         <?php if ($canEdit): ?><button type="button" class="btn primary sm" data-newpost=""><?= icon('plus', 16) ?> Novo post</button><?php endif; ?>
       </form>
     </div>
-    <p class="muted cal-sum"><?= count($inMonth) ?> post(s) em <?= e(MONTHS_PT[$mo]) ?> · <?= $nPub ?> publicado(s)</p>
+    <p class="muted cal-sum"><?= count($inMonth) ?> post(s) em <?= e(MONTHS_PT[$mo]) ?> · <?= $nDone ?> concluído(s)</p>
 
     <div class="cal-wrap"><div class="cal" data-can-edit="<?= $canEdit ? 1 : 0 ?>">
       <?php foreach (['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'] as $w): ?><div class="cal-wd"><?= $w ?></div><?php endforeach; ?>
@@ -89,16 +99,17 @@ function render_calendar(?int $client, array $pairs): string
           $list = $byDay[$d] ?? [];
           $cls = ($d === $today ? ' today' : '') . (substr($d, 0, 7) !== $f['m'] ? ' out' : '') . ($i % 7 === 0 || $i % 7 === 6 ? ' wk' : ''); ?>
         <div class="cal-day<?= $cls ?>">
-          <div class="cal-dh"><span class="cal-dn"><?= (int) substr($d, 8, 2) ?></span>
-            <?php if ($canEdit): ?><button type="button" class="cal-add" data-newpost="<?= $d ?>" title="Adicionar post em <?= fmt_date($d) ?>"><?= icon('plus', 13) ?> Adicionar</button><?php endif; ?></div>
+          <div class="cal-dh">
+            <?php if ($canEdit): ?><button type="button" class="cal-add" data-newpost="<?= $d ?>" title="Adicionar post em <?= fmt_date($d) ?>"><?= icon('plus', 13) ?> Adicionar</button><?php endif; ?>
+            <span class="cal-dn"><?= (int) substr($d, 8, 2) ?></span></div>
           <?php foreach (array_slice($list, 0, 3) as $p): ?>
-            <button type="button" class="cal-chip st-<?= e($p['status']) ?>" data-post="<?= (int) $p['id'] ?>" title="<?= e($p['cliente'] . ' · ' . $p['canal_label'] . ' · ' . $p['formato_label'] . ($p['titulo'] ? ' · ' . $p['titulo'] : '')) ?>">
-              <span class="cc-top"><i class="chb ch-<?= e($p['canal']) ?>"><?= e($p['sigla']) ?></i><time><?= e($p['hora'] ?: '') ?></time><?= post_status_icon($p['status']) ?></span>
-              <span class="cc-nm"><?= e($client ? ($p['titulo'] ?: $p['formato_label']) : explode(' ', $p['cliente'])[0] . ($p['titulo'] ? ' · ' . $p['titulo'] : '')) ?></span></button>
+            <button type="button" class="cal-chip ps-<?= e($p['status']) ?>" data-post="<?= (int) $p['id'] ?>" title="<?= e($p['cliente'] . ' · ' . $p['canal_label'] . ' · ' . $p['formato_label'] . ' · ' . $p['status_label'] . ($p['titulo'] ? ' — ' . $p['titulo'] : '')) ?>">
+              <i class="chb ch-<?= e($p['canal']) ?>"><?= e($p['sigla']) ?></i><span class="cal-nm"><?= e($client ? ($p['titulo'] ?: $p['formato_label']) : explode(' ', $p['cliente'])[0]) ?></span>
+              <time><?= e($p['hora'] ?: '') ?></time><?= post_status_icon($p['status']) ?></button>
           <?php endforeach; ?>
-          <?php if (count($list) > 3): ?><button type="button" class="cal-more" data-day="<?= $d ?>">+<?= count($list) - 3 ?> mais…</button><?php endif; ?>
+          <?php if ($list): ?><div class="cal-foot"><span><?= min(3, count($list)) ?> / <?= count($list) ?></span><button type="button" class="cal-more" data-day="<?= $d ?>">mais…</button></div><?php endif; ?>
           <button type="button" class="cal-hit" data-day="<?= $d ?>" aria-label="Ver os posts de <?= fmt_date($d) ?>"></button>
-          <?php if ($list): ?><span class="cal-dots" aria-hidden="true"><?php foreach (array_slice($list, 0, 4) as $p): ?><i class="cal-dot dot-<?= e($p['status']) ?>"></i><?php endforeach; ?><?php if (count($list) > 4): ?><b>+<?= count($list) - 4 ?></b><?php endif; ?></span><?php endif; ?>
+          <?php if ($list): ?><span class="cal-dots" aria-hidden="true"><?php foreach (array_slice($list, 0, 4) as $p): ?><i class="cal-dot ps-<?= e($p['status']) ?>"></i><?php endforeach; ?><?php if (count($list) > 4): ?><b>+<?= count($list) - 4 ?></b><?php endif; ?></span><?php endif; ?>
         </div>
       <?php endfor; ?>
     </div></div>
@@ -140,17 +151,20 @@ function calendar_dialogs(?int $client, string $ret): void
     </section>
     <aside class="pv-side">
       <h4>Informações do post</h4>
-      <ul class="pv-info"><li id="pv-i-canal"></li><li id="pv-i-status"></li><li id="pv-i-when"></li><li id="pv-i-by"></li></ul>
+      <ul class="pv-info"><li id="pv-i-canal"></li><li id="pv-i-status"></li><li id="pv-i-created"></li><li id="pv-i-when"></li></ul>
       <?php if ($canEdit): ?>
+      <form method="post" id="pv-status" class="pv-status"><?= csrf_field() ?><input type="hidden" name="action" value="post_status"><input type="hidden" name="id" value=""><input type="hidden" name="return" value="<?= e($ret) ?>">
+        <label>Mudar status<select name="status" onchange="this.form.submit()"><?php foreach (POST_STATUS as $k => $v): ?><option value="<?= $k ?>"><?= e($v) ?></option><?php endforeach; ?></select></label></form>
       <h4>Ações</h4>
       <div class="pv-actions">
-        <button type="button" class="btn ghost sm" data-edit="dlg-post"><?= icon('edit', 16) ?> Editar</button>
-        <button type="button" class="btn ghost sm" id="pv-clone"><?= icon('copy2', 16) ?> Clonar</button>
-        <form method="post" id="pv-pub"><?= csrf_field() ?><input type="hidden" name="action" value="post_status"><input type="hidden" name="id" value=""><input type="hidden" name="status" value="publicado"><input type="hidden" name="return" value="<?= e($ret) ?>">
-          <button class="btn primary sm"><?= icon('check', 16) ?> Marcar como publicado</button></form>
+        <button type="button" class="pv-link" data-edit="dlg-post"><?= icon('edit', 16) ?> Editar</button>
+        <button type="button" class="pv-link" id="pv-clone"><?= icon('copy2', 16) ?> Clonar</button>
         <?php if (can('delete')): ?><form method="post" id="pv-del" data-confirm="Excluir este post do calendário?"><?= csrf_field() ?><input type="hidden" name="action" value="post_delete"><input type="hidden" name="id" value=""><input type="hidden" name="return" value="<?= e($ret) ?>">
-          <button class="btn ghost sm danger-t"><?= icon('trash', 16) ?> Excluir post</button></form><?php endif; ?>
-      </div><?php endif; ?>
+          <button class="pv-link danger"><?= icon('trash', 16) ?> Excluir post</button></form><?php endif; ?>
+      </div>
+      <form method="post" id="pv-pub"><?= csrf_field() ?><input type="hidden" name="action" value="post_status"><input type="hidden" name="id" value=""><input type="hidden" name="status" value="concluido"><input type="hidden" name="return" value="<?= e($ret) ?>">
+        <button class="btn primary full"><?= icon('check', 16) ?> Marcar como concluído</button></form>
+      <?php endif; ?>
     </aside>
   </div>
 </dialog>

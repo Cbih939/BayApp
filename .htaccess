@@ -17,3 +17,10 @@ DirectoryIndex index.php
 # RewriteEngine On
 # RewriteCond %{HTTPS} off
 # RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# CSS/JS sempre revalidados (a URL já muda com o conteúdo): evita visual antigo depois de atualizar
+<IfModule mod_headers.c>
+  <FilesMatch "\.(css|js)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+</IfModule>

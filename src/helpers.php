@@ -131,7 +131,12 @@ const REC_MONTHS = ['mensal' => 1, 'trimestral' => 3, 'semestral' => 6, 'anual' 
 const POST_CHANNELS = ['instagram' => ['Instagram', 'IG'], 'facebook' => ['Facebook', 'FB'], 'tiktok' => ['TikTok', 'TT'],
     'linkedin' => ['LinkedIn', 'IN'], 'youtube' => ['YouTube', 'YT'], 'outro' => ['Outro', '··']];
 const POST_FORMATS = ['post' => 'Post (feed)', 'carrossel' => 'Carrossel', 'reels' => 'Reels / vídeo curto', 'stories' => 'Stories', 'video' => 'Vídeo longo'];
-const POST_STATUS = ['planejado' => 'Planejado', 'aprovado' => 'Aprovado', 'publicado' => 'Publicado', 'cancelado' => 'Cancelado'];
+/** Fluxo de aprovação do conteúdo (igual ao quadro de demandas de referência). Chaves com até 10 caracteres (coluna do banco). */
+const POST_STATUS = ['rascunho' => 'Rascunho', 'conteudo' => 'Conteúdo', 'aprov_int' => 'Aprovação interna', 'aprov_cli' => 'Aprovação do cliente',
+    'ajustes' => 'Ajustes', 'aguardando' => 'Aguardando agendamento', 'agendado' => 'Aprovado e agendado', 'concluido' => 'Concluído', 'cancelado' => 'Cancelado'];
+/** Ícone de cada status (a cor vem do CSS: .ps-<status>). */
+const POST_STATUS_ICON = ['rascunho' => 'file', 'conteudo' => 'sparkles', 'aprov_int' => 'check', 'aprov_cli' => 'users', 'ajustes' => 'edit',
+    'aguardando' => 'clock', 'agendado' => 'cal', 'concluido' => 'check', 'cancelado' => 'x'];
 const MONTHS_PT = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
 /** O que o pacote pode incluir por mês (os 5 primeiros são contados pelo calendário). */
@@ -167,11 +172,11 @@ function guess_link_type(string $url): string
     };
 }
 
-/** URL de um asset estático com ?v=mtime, para o navegador/CDN não servir CSS antigo após um deploy. */
+/** URL de um asset estático com ?v=<hash do conteúdo>, para o navegador/CDN não servir CSS/JS antigo após um deploy. */
 function asset(string $path): string
 {
     $f = APP_ROOT . '/' . $path;
-    return $path . (is_file($f) ? '?v=' . filemtime($f) : '');
+    return $path . (is_file($f) ? '?v=' . substr(md5_file($f), 0, 10) : '');   // muda sempre que o conteúdo muda
 }
 
 /** Logo da marca: versão branca (tema escuro) e azul-escuro (tema claro); o CSS alterna conforme o tema. */

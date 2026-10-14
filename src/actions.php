@@ -318,7 +318,7 @@ function handle_action(string $a): string
             $dia = post('dia'); $hora = post('hora');
             if (!valid_date($dia)) throw new RuntimeException('Informe a data da postagem.');
             if ($hora !== '' && !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $hora)) throw new RuntimeException('Horário inválido.');
-            $status = array_key_exists(post('status'), POST_STATUS) ? post('status') : 'planejado';
+            $status = array_key_exists(post('status'), POST_STATUS) ? post('status') : 'rascunho';
             $old = $id ? row('SELECT status, publicado_em FROM posts WHERE id = ?', [$id]) : null;
             if ($id && !$old) throw new RuntimeException('Post não encontrado.');
             $d = ['client_id' => $cid, 'dia' => $dia, 'hora' => $hora === '' ? null : $hora,
@@ -326,7 +326,7 @@ function handle_action(string $a): string
                 'formato' => array_key_exists(post('formato'), POST_FORMATS) ? post('formato') : 'post',
                 'titulo' => post_or_null('titulo') === null ? null : mb_substr(post('titulo'), 0, 200), 'legenda' => post_or_null('legenda'),
                 'midia_url' => clean_link(post('midia_url')), 'status' => $status, 'atualizado_em' => now(),
-                'publicado_em' => $status === 'publicado' ? (($old && $old['publicado_em']) ?: now()) : null];
+                'publicado_em' => $status === 'concluido' ? (($old && $old['publicado_em']) ?: now()) : null];
             if ($id) { update('posts', $id, $d); flash('Post atualizado.'); }
             else { insert('posts', $d + ['criado_por' => $u['id'], 'criado_em' => now()]); flash('Post agendado no calendário 📅'); }
             audit('post_save', $dia);
@@ -337,7 +337,7 @@ function handle_action(string $a): string
             $st = post('status');
             if (!isset(POST_STATUS[$st])) throw new RuntimeException('Status inválido.');
             if (!row('SELECT id FROM posts WHERE id = ?', [$id])) throw new RuntimeException('Post não encontrado.');
-            update('posts', $id, ['status' => $st, 'publicado_em' => $st === 'publicado' ? now() : null, 'atualizado_em' => now()]);
+            update('posts', $id, ['status' => $st, 'publicado_em' => $st === 'concluido' ? now() : null, 'atualizado_em' => now()]);
             flash('Post marcado como ' . mb_strtolower(POST_STATUS[$st]) . '.');
             return $ret;
 

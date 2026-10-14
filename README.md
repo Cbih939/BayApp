@@ -8,7 +8,7 @@ Aplicativo em **PHP 8 + MySQL** (preto, branco e roxo) para agências: cadastro 
 | **Equipe** | Usuários *Administrador*, *Designer* e *Desenvolvedor* (criar, editar, desativar, excluir) com permissões por perfil |
 | **Clientes** | Cadastro em cards; página do cliente com abas Contrato & pacote · Calendário · Senhas · Serviços · Tarefas · Links · Portal |
 | **Pacotes e contrato** | Pacotes com o que o cliente tem direito por mês (posts, stories, relatórios…); contrato em vigor com início, término, valor, cobrança e link do documento; uso do pacote no mês contado pelo calendário |
-| **Calendário de postagem** | Grade mensal por cliente ou geral, com canal, formato, status, legenda e link da arte (Canva/Drive); modal de preview, clonar e marcar como publicado |
+| **Calendário de postagem** | Grade mensal por cliente ou geral, com canal, formato, status, legenda e link da arte (Canva/Drive); faixa com o **fluxo de status** do conteúdo (Rascunho → Conteúdo → Aprovação interna → Aprovação do cliente → Ajustes → Aguardando agendamento → Aprovado e agendado → Concluído) com contagem e filtro; modal de preview com informações, histórico, clonar e mudança de status; no celular, pontos coloridos por dia |
 | **Senhas** | Por cliente e tipo (Instagram, site, hospedagem, domínio, e-mail…). Cadastro rápido: chips de tipo, gerador de senha forte, “colar tudo de uma vez”. Criptografia AES-256-GCM; ver/copiar fica registrado |
 | **Pagamentos dos clientes** | Aba *Pagamentos* em cada cliente: vencimento **fixo** (1x ao ano) ou **variável** (mês a mês, valor muda) ou único; lista **em aberto** e **pagos**; calendário de pagamentos (global, por cliente e no portal); **boleto e quitação** anexados em vários arquivos (PDF, imagem, Word, Excel), com arquivos *internos* que o cliente não vê |
 | **Vencimentos internos** | Contas da própria Bay Groups (hospedagem, domínios, ferramentas, impostos…) com recorrência, histórico de pagos e alertas |
@@ -44,6 +44,9 @@ Em *Clientes → (cliente) → aba Portal*, crie o login e envie ao cliente o li
 
 ## Arquivos enviados (boleto e quitação)
 Ficam em `storage/uploads` (bloqueada ao acesso direto) com nome aleatório e só saem por download autenticado — equipe pelo painel, cliente apenas os do próprio cadastro e que não sejam *internos*. Aceita PDF, PNG/JPG/WEBP, Word e Excel, até 15 MB cada e 10 por envio (o limite do servidor, `post_max_size`, também vale). Faça backup dessa pasta junto com o banco.
+
+## Visual desatualizado depois de atualizar?
+Os arquivos de visual (`assets/css`, `assets/js`) são servidos com versão pelo conteúdo e sempre revalidados. Se mesmo assim algum navegador/CDN entregar um `app.css` antigo ou incompleto, o app tenta recarregar sozinho e, se não resolver, mostra um aviso no topo com o tamanho esperado e o recebido. Nesse caso: Ctrl+F5, limpe o cache da hospedagem (hPanel) e confira se `assets/css/app.css` foi enviado por completo.
 
 ## Segurança
 Senhas de login com `password_hash`, CSRF em todos os formulários, consultas preparadas, limite de tentativas de login, cookies `HttpOnly/SameSite`, pastas `src/`, `pages/` e `storage/` bloqueadas via `.htaccess` e trilha de auditoria.

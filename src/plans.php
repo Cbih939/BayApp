@@ -123,3 +123,11 @@ function backfill_payment_dates(): void
         update('payments', (int) $r['id'], ['vencimento' => $r['competencia'] . '-' . sprintf('%02d', min((int) substr($r['vencimento'], 8, 2), $dim))]);
     }
 }
+
+/** Status antigos dos posts (planejado/aprovado/publicado) para o novo fluxo de conteúdo. */
+function migrate_post_status(): void
+{
+    foreach (['planejado' => 'conteudo', 'aprovado' => 'agendado', 'publicado' => 'concluido'] as $old => $new) {
+        q('UPDATE posts SET status = ? WHERE status = ?', [$new, $old]);
+    }
+}

@@ -177,6 +177,13 @@ function pay_dialogs(string $ret, bool $portal = false): void
 
 /* ---------------- Calendário de pagamentos ---------------- */
 
+/** Bolinha colorida do estado do pagamento (cor em .ps-<estado>). */
+function cycle_state_icon(string $estado): string
+{
+    $ico = ['pago' => 'check', 'atrasado' => 'x', 'aberto' => 'clock', 'previsto' => null][$estado] ?? 'clock';
+    return '<i class="pst ps-' . e($estado) . '" title="' . e(CYCLE_STATE[$estado] ?? $estado) . '">' . ($ico ? icon($ico, 10) : '·') . '</i>';
+}
+
 function paycal_filters(array $src): array
 {
     $m = (string) ($src['pm'] ?? '');
@@ -218,12 +225,13 @@ function render_paycal(?int $client, array $pairs, bool $portal = false, string 
       </div>
       <form class="cal-filters" method="get" action="<?= e($base) ?>">
         <?php foreach (array_merge($pairs, ['pm' => $f['pm']]) as $k => $v): ?><input type="hidden" name="<?= e($k) ?>" value="<?= e($v) ?>"><?php endforeach; ?>
-        <select name="pe" onchange="this.form.submit()"><option value="">Todas as situações</option>
-          <?php foreach (CYCLE_STATE as $k => $v): ?><option value="<?= $k ?>" <?= $f['pe'] === $k ? 'selected' : '' ?>><?= e($v) ?></option><?php endforeach; ?></select>
+        <label class="fpill <?= $f['pe'] ? 'on' : '' ?>"><?= icon('tasks', 15) ?><select name="pe" onchange="this.form.submit()" aria-label="Situação"><option value="">Situação</option>
+          <?php foreach (CYCLE_STATE as $k => $v): ?><option value="<?= $k ?>" <?= $f['pe'] === $k ? 'selected' : '' ?>><?= e($v) ?></option><?php endforeach; ?></select></label>
+        <?php if ($f['pe']): ?><a class="fpill on" href="<?= e($link(['pe' => ''])) ?>">Limpar filtro <?= icon('x', 13) ?></a><?php endif; ?>
       </form>
     </div>
-    <p class="muted cal-sum"><?= count($inMonth) ?> pagamento(s) em <?= e(MONTHS_PT[$mo]) ?> · <b><?= e(fmt_money($sum(['aberto', 'atrasado', 'previsto']))) ?></b> em aberto · <b><?= e(fmt_money($sum(['pago']))) ?></b> pago(s)
-      · <span class="legend"><i class="pst pst-pl"><?= icon('clock', 11) ?></i> aberto <i class="pst pst-no"><?= icon('x', 11) ?></i> atrasado <i class="pst pst-ok"><?= icon('check', 11) ?></i> pago <i class="pst pst-fu">·</i> previsto</span></p>
+    <p class="muted cal-sum"><?= count($inMonth) ?> pagamento(s) em <?= e(MONTHS_PT[$mo]) ?> · <b><?= e(fmt_money($sum(['aberto', 'atrasado', 'previsto']))) ?></b> em aberto · <b><?= e(fmt_money($sum(['pago']))) ?></b> pago(s)</p>
+    <div class="legend"><?php foreach (CYCLE_STATE as $k => $v): ?><span><?= cycle_state_icon($k) ?> <?= e(mb_strtolower($v)) ?></span><?php endforeach; ?></div>
     <div class="cal-wrap"><div class="cal">
       <?php foreach (['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'] as $w): ?><div class="cal-wd"><?= $w ?></div><?php endforeach; ?>
       <?php for ($i = 0; $i < $weeks * 7; $i++):
@@ -233,15 +241,13 @@ function render_paycal(?int $client, array $pairs, bool $portal = false, string 
         <div class="cal-day<?= $cls ?>">
           <div class="cal-dh"><span class="cal-dn"><?= (int) substr($d, 8, 2) ?></span></div>
           <?php foreach (array_slice($list, 0, 3) as $e): ?>
-            <button type="button" class="cal-chip st-<?= e($e['estado']) ?>" data-payopen="<?= e($e['key']) ?>" title="<?= e($e['cliente'] . ' · ' . $e['descricao'] . ' · ' . $e['estado_label']) ?>">
-              <span class="cc-top"><b class="cc-val"><?= $e['valor'] === null ? 'a definir' : e(preg_replace('/,00$/', '', str_replace('R$ ', '', $e['valor_fmt']))) ?></b><?= $e['arquivos'] ? icon('clip', 11) : '' ?><?= match ($e['estado']) {
-                  'pago' => '<i class="pst pst-ok">' . icon('check', 11) . '</i>', 'atrasado' => '<i class="pst pst-no">' . icon('x', 11) . '</i>',
-                  'previsto' => '<i class="pst pst-fu">·</i>', default => '<i class="pst pst-pl">' . icon('clock', 11) . '</i>' } ?></span>
-              <span class="cc-nm"><?= e($client ? $e['descricao'] : explode(' ', $e['cliente'])[0] . ' · ' . $e['descricao']) ?></span></button>
+            <button type="button" class="cal-chip ps-<?= e($e['estado']) ?>" data-payopen="<?= e($e['key']) ?>" title="<?= e($e['cliente'] . ' · ' . $e['descricao'] . ' · ' . $e['estado_label']) ?>">
+              <?= cycle_state_icon($e['estado']) ?><span class="cal-nm"><?= e($client ? $e['descricao'] : explode(' ', $e['cliente'])[0]) ?></span>
+              <?= $e['arquivos'] ? icon('clip', 11) : '' ?><time><?= $e['valor'] === null ? 'a definir' : e(preg_replace('/,00$/', '', str_replace('R$ ', '', $e['valor_fmt']))) ?></time></button>
           <?php endforeach; ?>
-          <?php if (count($list) > 3): ?><button type="button" class="cal-more" data-payday="<?= $d ?>">+<?= count($list) - 3 ?> mais…</button><?php endif; ?>
+          <?php if ($list): ?><div class="cal-foot"><span><?= min(3, count($list)) ?> / <?= count($list) ?></span><button type="button" class="cal-more" data-payday="<?= $d ?>">mais…</button></div><?php endif; ?>
           <button type="button" class="cal-hit" data-payday="<?= $d ?>" aria-label="Ver os pagamentos de <?= fmt_date($d) ?>"></button>
-          <?php if ($list): ?><span class="cal-dots" aria-hidden="true"><?php foreach (array_slice($list, 0, 4) as $e): ?><i class="cal-dot dot-<?= e($e['estado']) ?>"></i><?php endforeach; ?><?php if (count($list) > 4): ?><b>+<?= count($list) - 4 ?></b><?php endif; ?></span><?php endif; ?>
+          <?php if ($list): ?><span class="cal-dots" aria-hidden="true"><?php foreach (array_slice($list, 0, 4) as $e): ?><i class="cal-dot ps-<?= e($e['estado']) ?>"></i><?php endforeach; ?><?php if (count($list) > 4): ?><b>+<?= count($list) - 4 ?></b><?php endif; ?></span><?php endif; ?>
         </div>
       <?php endfor; ?>
     </div></div>
