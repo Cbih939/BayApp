@@ -122,11 +122,12 @@
 
     const openNew = (pref = {}) => {
       dlgDay?.close();
-      const f = $('form', dlgPost); f.reset(); f.elements.id.value = '';
+      const f = $('form', dlgPost); f.reset(); f.elements.id.value = ''; $('#post-rmimg').hidden = true;
       $('[data-title]', dlgPost).textContent = $('[data-title]', dlgPost).dataset.title.split('|')[0];
       Object.entries(pref).forEach(([k, v]) => { if (f.elements[k] && v != null) f.elements[k].value = v; });
       dlgPost.showModal();
     };
+    dlgPost.addEventListener('bay:fill', e => { const r = $('#post-rmimg'); r.hidden = !e.detail?.imagem; $('#post-curimg').textContent = e.detail?.imagem_nome ? '(' + e.detail.imagem_nome + ')' : ''; });
     const openView = id => {
       const p = byId[id]; if (!p) return;
       dlgDay?.close();
@@ -135,7 +136,8 @@
       $('#pv-sub').textContent = `${p.canal_label} · ${p.formato_label}` + (p.titulo ? ' · ' + p.titulo : '');
       const cap = $('#pv-caption'); cap.textContent = p.legenda || 'Sem legenda.'; cap.classList.toggle('muted', !p.legenda);
       const m = $('#pv-media'); m.innerHTML = '';
-      if (p.midia_url && IMG.test(p.midia_url)) { const i = el('img'); i.src = p.midia_url; i.alt = 'Arte do post'; i.loading = 'lazy'; i.referrerPolicy = 'no-referrer'; m.append(i); }
+      if (p.imagem) { const i = el('img'); i.src = 'index.php?p=postimg&id=' + p.id; i.alt = 'Arte do post'; i.loading = 'lazy'; m.append(i); }
+      else if (p.midia_url && IMG.test(p.midia_url)) { const i = el('img'); i.src = p.midia_url; i.alt = 'Arte do post'; i.loading = 'lazy'; i.referrerPolicy = 'no-referrer'; m.append(i); }
       else if (p.midia_url) { const a = el('a', 'pv-ph', ''); a.href = p.midia_url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.append(el('b', '', 'Abrir arte'), el('small', 'muted', p.midia_url.replace(/^https?:\/\/(www\.)?/, '').slice(0, 50))); m.append(a); }
       else m.append(el('div', 'pv-ph none', 'Nenhuma arte anexada'));
       const li1 = $('#pv-i-canal'); li1.innerHTML = ''; li1.append(el('i', 'chb ch-' + p.canal, p.sigla), el('span', '', `${p.canal_label} — ${p.formato_label}`));

@@ -66,6 +66,22 @@ function save_uploads(array $cycle, string $kind, ?int $uid): array
     return [$ok, $err];
 }
 
+/** Imagem da arte de um post (campo "imagem"). Retorna [nome_guardado, nome_original] ou null se nada foi enviado. */
+function save_post_image(): ?array
+{
+    $f = $_FILES['imagem'] ?? null;
+    if (!$f || is_array($f['name']) || ($f['error'] ?? 0) === UPLOAD_ERR_NO_FILE) return null;
+    if ($f['error'] !== UPLOAD_ERR_OK) throw new RuntimeException($f['error'] === UPLOAD_ERR_INI_SIZE || $f['error'] === UPLOAD_ERR_FORM_SIZE ? 'A imagem é maior que o limite do servidor.' : 'Falha no envio da imagem.');
+    $nome = mb_substr(preg_replace('/[\x00-\x1F\x7F\\\\\/]+/u', '', (string) $f['name']), 0, 200);
+    $ext = strtolower(pathinfo($nome, PATHINFO_EXTENSION));
+    if (!in_array($ext, ['png', 'jpg', 'jpeg', 'webp'], true)) throw new RuntimeException('Envie a arte como imagem PNG, JPG ou WEBP.');
+    if ($f['size'] > UPLOAD_MAX_BYTES) throw new RuntimeException('A imagem passa de ' . fmt_size(UPLOAD_MAX_BYTES) . '.');
+    if (!is_uploaded_file($f['tmp_name']) || strpos((string) (new finfo(FILEINFO_MIME_TYPE))->file($f['tmp_name']), 'image/') !== 0) throw new RuntimeException('O arquivo enviado não é uma imagem válida.');
+    $stored = 'p' . bin2hex(random_bytes(15)) . '.' . $ext;
+    if (!@move_uploaded_file($f['tmp_name'], upload_dir() . "/$stored")) throw new RuntimeException('Não foi possível salvar a imagem.');
+    return [$stored, $nome];
+}
+
 /** Apaga do disco os arquivos de uma lista de registros (as linhas somem por cascata ou delete). */
 function files_unlink(array $rows): void
 {
