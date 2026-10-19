@@ -4,7 +4,7 @@ declare(strict_types=1);
 const PERMS = [
     'admin'    => ['*'],
     'dev'      => ['clients.edit', 'creds.view', 'creds.edit', 'billing.view', 'billing.edit', 'links.edit', 'posts.edit'],
-    'designer' => ['creds.view', 'creds.edit', 'creds.delete', 'billing.view', 'links.edit', 'links.delete', 'posts.edit'],
+    'designer' => ['clients.edit', 'creds.view', 'creds.edit', 'creds.delete', 'billing.view', 'links.edit', 'links.delete', 'posts.edit'],
 ];
 
 function start_session(): void
