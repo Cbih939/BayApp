@@ -87,6 +87,22 @@ if ($p === 'download') {
     serve_file($f);
 }
 
+/* ---------- PDF do calendário de postagens ---------- */
+if ($p === 'calendario_pdf') {
+    $f = cal_filters($_GET);
+    $cid = (int) ($_GET['client'] ?? 0) ?: null;
+    $pdf = calendar_pdf($f['m'], $cid, $f['canal']);
+    if ($pdf === null) {
+        flash('Nenhuma postagem pronta neste mês (aguardando agendamento, aprovado e agendado ou concluído) para gerar o PDF.', 'err');
+        parse_str((string) parse_url((string) ($_SERVER['HTTP_REFERER'] ?? ''), PHP_URL_QUERY), $back);
+        redirect(safe_return('index.php?' . http_build_query($back + ['p' => 'calendario', 'm' => $f['m']])));
+    }
+    audit('calendar_pdf', $f['m']);
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: attachment; filename="calendario-postagens-' . $f['m'] . '.pdf"');
+    exit($pdf);
+}
+
 /* ---------- Imagem da arte de um post ---------- */
 if ($p === 'postimg') {
     $f = can('posts.edit') || can('billing.view') || can('clients.edit') ? row('SELECT imagem AS arquivo, imagem_nome AS nome FROM posts WHERE id = ? AND imagem IS NOT NULL', [(int) ($_GET['id'] ?? 0)]) : null;

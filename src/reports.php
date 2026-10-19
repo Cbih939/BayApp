@@ -273,17 +273,26 @@ function report_csv(array $r): string
 final class MiniPdf
 {
     private array $pages = [];
+    private array $pageImgs = [];
+    private array $imgs = [];
     private string $cur = '';
+    private array $curImgs = [];
     public float $y = 0;
     public const W = 595, H = 842, M = 40;
+    public int $pw = self::W, $ph = self::H;
 
-    public function __construct() { $this->newPage(); }
+    /** $landscape = A4 deitado (calendário); padrão = A4 em pé (relatórios). */
+    public function __construct(bool $landscape = false)
+    {
+        if ($landscape) { $this->pw = self::H; $this->ph = self::W; }
+        $this->newPage();
+    }
 
     public function newPage(): void
     {
-        if ($this->cur !== '') $this->pages[] = $this->cur;
-        $this->cur = '';
-        $this->y = self::H - self::M;
+        if ($this->cur !== '') { $this->pages[] = $this->cur; $this->pageImgs[] = $this->curImgs; }
+        $this->cur = ''; $this->curImgs = [];
+        $this->y = $this->ph - self::M;
     }
 
     public function ensure(float $h): void { if ($this->y - $h < self::M + 20) $this->newPage(); }
@@ -312,19 +321,41 @@ final class MiniPdf
         $this->cur .= sprintf("%.3f %.3f %.3f rg %.1f %.1f %.1f %.1f re f\n", $rgb[0], $rgb[1], $rgb[2], $x, $y, $w, $h);
     }
 
+    /** Contorno retangular de 0,5 pt. */
+    public function frame(float $x, float $y, float $w, float $h, array $rgb): void
+    {
+        $this->cur .= sprintf("%.3f %.3f %.3f RG 0.5 w %.1f %.1f %.1f %.1f re S\n", $rgb[0], $rgb[1], $rgb[2], $x, $y, $w, $h);
+    }
+
+    /** Imagem JPEG (bytes) já redimensionada, desenhada na caixa x,y,w,h. */
+    public function image(string $jpeg, int $iw, int $ih, float $x, float $y, float $w, float $h): void
+    {
+        $k = md5($jpeg);
+        $this->imgs[$k] ??= [$jpeg, $iw, $ih];
+        $this->curImgs[$k] = true;
+        $this->cur .= sprintf("q %.1f 0 0 %.1f %.1f %.1f cm /I%s Do Q\n", $w, $h, $x, $y, $k);
+    }
+
     public function output(): string
     {
-        $this->pages[] = $this->cur;
+        $this->pages[] = $this->cur; $this->pageImgs[] = $this->curImgs;
         $this->cur = '';
         $n = count($this->pages);
         $objs = [1 => '<< /Type /Catalog /Pages 2 0 R >>', 3 => '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
             4 => '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>'];
         $kids = [];
+        $imgId = 5 + count($this->pages) * 2;
+        $imgObj = [];
+        foreach ($this->imgs as $k => [$jpeg, $iw, $ih]) {
+            $imgObj[$k] = $imgId;
+            $objs[$imgId++] = "<< /Type /XObject /Subtype /Image /Width $iw /Height $ih /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " . strlen($jpeg) . " >>\nstream\n$jpeg\nendstream";
+        }
         foreach ($this->pages as $i => $c) {
             $c .= sprintf("BT /F1 8 Tf 0.5 0.5 0.55 rg %.1f 24 Td (%s) Tj ET\n", self::M, self::enc('Página ' . ($i + 1) . ' de ' . $n));
             $pid = 5 + $i * 2;
             $kids[] = "$pid 0 R";
-            $objs[$pid] = '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' . self::W . ' ' . self::H . '] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ' . ($pid + 1) . ' 0 R >>';
+            $objs[$pid] = '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' . $this->pw . ' ' . $this->ph . '] /Resources << /Font << /F1 3 0 R /F2 4 0 R >>'
+                . ($this->pageImgs[$i] ? ' /XObject << ' . implode(' ', array_map(fn($k) => "/I$k {$imgObj[$k]} 0 R", array_keys($this->pageImgs[$i]))) . ' >>' : '') . ' >> /Contents ' . ($pid + 1) . ' 0 R >>';
             $objs[$pid + 1] = "<< /Length " . strlen($c) . " >>\nstream\n$c\nendstream";
         }
         $objs[2] = '<< /Type /Pages /Kids [' . implode(' ', $kids) . '] /Count ' . $n . ' >>';
