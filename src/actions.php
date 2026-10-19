@@ -83,7 +83,7 @@ function handle_action(string $a): string
             return $ret;
 
         case 'cred_delete':
-            require_can('delete');
+            require_can('creds.delete');
             q('DELETE FROM credentials WHERE id = ?', [$id]); audit('cred_delete', "#$id"); flash('Acesso excluído.');
             return $ret;
 
@@ -217,7 +217,7 @@ function handle_action(string $a): string
             return $ret;
 
         case 'link_delete':
-            require_can('delete');
+            require_can('links.delete');
             q('DELETE FROM links WHERE id = ?', [$id]); flash('Link removido.');
             return $ret;
 

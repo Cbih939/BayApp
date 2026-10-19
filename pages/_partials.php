@@ -57,7 +57,7 @@ function render_cred_card(array $c, string $ret): void
       <?php if ($c['notas']): ?><p class="note"><?= e($c['notas']) ?></p><?php endif; ?>
       <?php if (can('creds.edit')): ?><div class="card-actions row">
         <button type="button" class="icon-btn" data-edit="dlg-cred" title="Editar"><?= icon('edit') ?></button>
-        <?php if (can('delete')): ?><?= delete_btn('cred_delete', (int) $c['id'], $ret, 'este acesso') ?><?php endif; ?></div><?php endif; ?>
+        <?php if (can('creds.delete')): ?><?= delete_btn('cred_delete', (int) $c['id'], $ret, 'este acesso') ?><?php endif; ?></div><?php endif; ?>
     </article>
     <?php
 }
@@ -75,7 +75,7 @@ function render_link_card(array $l, string $ret): void
         <?= icon('external', 18) ?></a>
       <?php if (can('links.edit')): ?><div class="card-actions row">
         <button type="button" class="icon-btn" data-edit="dlg-link" title="Editar"><?= icon('edit') ?></button>
-        <?php if (can('delete')): ?><?= delete_btn('link_delete', (int) $l['id'], $ret, 'este link') ?><?php endif; ?></div><?php endif; ?>
+        <?php if (can('links.delete')): ?><?= delete_btn('link_delete', (int) $l['id'], $ret, 'este link') ?><?php endif; ?></div><?php endif; ?>
     </article>
     <?php
 }
