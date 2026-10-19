@@ -60,10 +60,11 @@ $audQ = fn(array $o = []) => url('usuarios', array_filter(['t' => 'atividade', '
   <table><thead><tr><th>Recurso</th><th>Administrador</th><th>Desenvolvedor</th><th>Designer</th></tr></thead><tbody>
     <tr><td>Ver senhas, vencimentos e links</td><td>✔</td><td>✔</td><td>✔</td></tr>
     <tr><td>Editar senhas e links</td><td>✔</td><td>✔</td><td>✔</td></tr>
-    <tr><td>Cadastrar/editar clientes e acessos do portal</td><td>✔</td><td>✔</td><td>—</td></tr>
+    <tr><td>Cadastrar/editar clientes e acessos do portal</td><td>✔</td><td>✔</td><td>✔</td></tr>
     <tr><td>Pagamentos dos clientes (anexar boleto e quitação, marcar como pago)</td><td>✔</td><td>✔</td><td>—</td></tr>
     <tr><td>Vencimentos internos da Bay Groups</td><td>✔</td><td>✔</td><td>—</td></tr>
-    <tr><td>Excluir registros</td><td>✔</td><td>—</td><td>—</td></tr>
+    <tr><td>Excluir senhas e links</td><td>✔</td><td>—</td><td>✔</td></tr>
+    <tr><td>Excluir os demais registros</td><td>✔</td><td>—</td><td>—</td></tr>
     <tr><td>Equipe, atividade e configurações</td><td>✔</td><td>—</td><td>—</td></tr></tbody></table></section>
 </section>
 
