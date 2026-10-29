@@ -102,7 +102,7 @@ function handle_action(string $a): string
             $d = ['client_id' => $cid, 'tipo' => $tipo, 'descricao' => post('descricao') ?: BILL_TYPES[$tipo],
                 'fornecedor' => post_or_null('fornecedor'), 'valor' => $valor, 'vencimento' => $venc, 'recorrencia' => $rec, 'modelo' => $model,
                 'avisar_email' => isset($_POST['avisar_email']) ? 1 : 0, 'avisar_whatsapp' => isset($_POST['avisar_whatsapp']) ? 1 : 0,
-                'notas' => post_or_null('notas')];
+                'avisar_cliente' => isset($_POST['avisar_cliente']) ? 1 : 0, 'notas' => post_or_null('notas')];
             if ($id) { update('billings', $id, $d); flash('Serviço atualizado.'); }
             else { insert('billings', $d + ['status' => 'pendente', 'criado_em' => now()]); flash('Serviço cadastrado. Você será avisado com 30, 15 e 7 dias de antecedência 🔔'); }
             audit('bill_save', $d['descricao']);
@@ -245,8 +245,9 @@ function handle_action(string $a): string
                 $r = row('SELECT nome, email FROM users WHERE id = ?', [$aid]);
                 if ($r && filter_var($r['email'], FILTER_VALIDATE_EMAIL)) {
                     send_mail([$r['email']], 'Nova tarefa para você — ' . setting('empresa_nome', 'BayApp'),
-                        '<div style="font-family:Arial,sans-serif"><h2>Olá, ' . e(explode(' ', $r['nome'])[0]) . '!</h2><p>' . e($u['nome']) . ' atribuiu uma tarefa a você:</p><p><b>'
-                        . e($d['titulo']) . '</b>' . ($d['prazo'] ? '<br>Prazo: ' . fmt_date($d['prazo']) : '') . '</p></div>');
+                        mail_layout('Olá, ' . explode(' ', $r['nome'])[0] . '!', '<p style="margin:0 0 10px">' . e($u['nome']) . ' atribuiu uma tarefa a você:</p><p style="margin:0;font-size:16px"><b>'
+                        . e($d['titulo']) . '</b>' . ($d['prazo'] ? '<br><span style="color:#767996;font-size:13px">Prazo: ' . fmt_date($d['prazo']) . '</span>' : '') . '</p>'
+                        . (app_url() !== '' ? mail_button(app_url() . '/index.php?p=tarefas', 'Abrir tarefas') : '')));
                 }
             }
             audit('task_save', $d['titulo']);
@@ -464,7 +465,14 @@ function handle_action(string $a): string
         /* ---------------- Configurações ---------------- */
         case 'settings_save':
             require_can('settings');
-            foreach (['empresa_nome', 'alert_emails', 'mail_from', 'wa_provider', 'wa_phone', 'wa_apikey', 'wa_webhook_url'] as $k) set_setting($k, post($k));
+            foreach (['empresa_nome', 'alert_emails', 'mail_from', 'smtp_host', 'smtp_user', 'wa_phone', 'wa_apikey', 'wa_webhook_url',
+                'wa_instance', 'wa_client_token', 'wa_meta_template', 'wa_meta_lang'] as $k) set_setting($k, post($k));
+            set_setting('smtp_port', (string) ((int) post('smtp_port') ?: ''));
+            set_setting('smtp_secure', in_array(post('smtp_secure'), ['ssl', 'tls', 'none'], true) ? post('smtp_secure') : 'ssl');
+            if (post('smtp_pass') !== '') set_setting('smtp_pass', encrypt_secret(post('smtp_pass')));
+            set_setting('wa_provider', array_key_exists(post('wa_provider'), WA_PROVIDERS) ? post('wa_provider') : 'nenhum');
+            foreach (['cli_notify', 'cli_email', 'cli_whatsapp'] as $k) set_setting($k, isset($_POST[$k]) ? '1' : '0');
+            set_setting('cli_marcos', implode(',', parse_marcos(post('cli_marcos'))));
             flash('Configurações salvas.');
             return $ret;
 
@@ -478,18 +486,26 @@ function handle_action(string $a): string
         case 'alert_test':
             require_can('settings');
             $res = [];
-            $ok = send_mail(alert_recipients(), 'Teste de alerta — ' . setting('empresa_nome', 'BayApp'),
-                mail_template('Teste de e-mail', [['descricao' => 'Alerta de teste', 'cliente' => 'BayApp', 'tipo' => 'outro', 'valor' => null, 'dias' => 7, 'vencimento' => date('Y-m-d', strtotime('+7 day'))]]));
-            $res[] = 'E-mail: ' . ($ok ? 'enviado' : 'falhou');
-            [$wok, $det] = send_whatsapp('✅ Teste de alerta do ' . setting('empresa_nome', 'BayApp'));
-            $res[] = 'WhatsApp: ' . ($wok ? 'enviado' : "não enviado ($det)");
+            $to = post('test_to');
+            $ok = $wok = false;
+            if ($to === '' || str_contains($to, '@')) {
+                $ok = send_mail($to !== '' ? [$to] : alert_recipients(), 'Teste de alerta — ' . setting('empresa_nome', 'BayApp'),
+                    mail_template('Teste de e-mail', [['descricao' => 'Alerta de teste', 'cliente' => 'BayApp', 'tipo' => 'outro', 'valor' => null, 'dias' => 7, 'vencimento' => date('Y-m-d', strtotime('+7 day'))]]));
+                $res[] = 'E-mail: ' . ($ok ? 'enviado' : 'falhou (' . mail_error() . ')');
+            }
+            if ($to === '' || !str_contains($to, '@')) {
+                [$wok, $det] = send_whatsapp('✅ Teste de alerta do ' . setting('empresa_nome', 'BayApp'), $to !== '' ? $to : null);
+                $res[] = 'WhatsApp: ' . ($wok ? 'enviado' : "não enviado ($det)");
+            }
             flash(implode(' · ', $res), $ok || $wok ? 'ok' : 'err');
             return $ret;
 
         case 'alert_run':
             require_can('settings');
             $r = run_alerts();
-            flash("Verificação concluída: {$r['verificados']} vencimento(s) analisados, {$r['alertas']} alerta(s) novo(s).");
+            $c = run_client_alerts();
+            flash("Verificação concluída: {$r['verificados']} vencimento(s) analisados, {$r['alertas']} alerta(s) novo(s) para a equipe."
+                . ($c['desligado'] ? '' : " Clientes: {$c['email']} e-mail(s) e {$c['whatsapp']} WhatsApp(s) enviados" . ($c['erros'] ? ", {$c['erros']} com erro (veja o histórico)." : '.')));
             return $ret;
     }
     throw new RuntimeException('Ação desconhecida.');

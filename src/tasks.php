@@ -232,7 +232,8 @@ function run_task_alerts(): array
             [, $label] = task_urgency($t);
             $li .= '<li><b>' . e($t['titulo']) . '</b>' . ($t['cliente'] ? ' — ' . e($t['cliente']) : '') . ' <i>(' . e($label) . ')</i></li>';
         }
-        $html = '<div style="font-family:Arial,sans-serif"><h2>Olá, ' . e(explode(' ', $u['nome'])[0]) . '!</h2><p>Estas tarefas precisam de atenção:</p><ul>' . $li . '</ul></div>';
+        $html = mail_layout('Olá, ' . explode(' ', $u['nome'])[0] . '!', '<p style="margin:0 0 8px">Estas tarefas precisam de atenção:</p><ul style="padding-left:18px;line-height:1.7">' . $li . '</ul>'
+            . (app_url() !== '' ? mail_button(app_url() . '/index.php?p=tarefas', 'Abrir tarefas') : ''));
         if (send_mail([$u['email']], 'Tarefas para hoje — ' . setting('empresa_nome', 'BayApp'), $html)) { $sent++; $n += count($list); }
     }
     set_setting('task_digest_date', $today);

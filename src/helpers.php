@@ -173,7 +173,7 @@ function guess_link_type(string $url): string
 }
 
 /** Versão do CSS que este código espera (precisa bater com `--bay-css` no fim de assets/css/app.css; some 1 ao mudar o CSS). */
-const ASSET_CSS_VERSION = '5';
+const ASSET_CSS_VERSION = '6';
 
 /**
  * CSS e JS vão DENTRO da página: hospedagens/CDNs costumam guardar arquivos estáticos (.css/.js) por muito tempo,

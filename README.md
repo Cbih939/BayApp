@@ -14,7 +14,7 @@ Aplicativo em **PHP 8 + MySQL** (preto, branco e roxo) para agências: cadastro 
 | **Vencimentos internos** | Contas da própria Bay Groups (hospedagem, domínios, ferramentas, impostos…) com recorrência, histórico de pagos e alertas |
 | **Tarefas** | Quadro Kanban com link próprio, detalhes e checklist com check; clique no cartão para ler e marcar os itens |
 | **Relatórios** | Financeiro (pago/previsto por mês, contrato desde, último mês pago, próximo vencimento) e Tarefas, separados, em gráficos de barras; PDF, Excel (CSV) e WhatsApp |
-| **Alertas** | Cron diário envia avisos a **30, 15 e 7 dias** (uma vez por marco) por **e-mail** e **WhatsApp** |
+| **Alertas** | Cron diário envia avisos à equipe a **30, 15 e 7 dias** (uma vez por marco) por **e-mail** (SMTP) e **WhatsApp**, e lembretes de pagamento aos **clientes** (ex.: 5 dias antes, no dia e 3 dias depois). Histórico de envios em *Configurações* |
 | **Pastas & Links** | Drive, Canva, Agenda, Docs, Figma — tipo detectado automaticamente; cada cliente aparece com as tarefas em aberto, e o modal da tarefa lista as pastas e links dele |
 | **Portal do cliente** | `portal.php`: login próprio para clientes (vários usuários por cliente), somente leitura — vê vencimentos e pastas/links; **não** vê senhas nem observações internas. Criado na aba *Portal* de cada cliente |
 | **Mensagens** | Chat entre cada cliente (no portal) e a equipe (no painel, menu *Mensagens*): uma conversa por cliente, indicador de não lidas no menu e na aba do navegador, indicador online/offline (a equipe vê o cliente; o cliente só vê o atendente que já respondeu na conversa e enquanto ela estiver aberta), atualização automática por polling (5 s com a aba aberta). Tabela `messages`, criada sozinha no primeiro acesso |
@@ -29,7 +29,7 @@ Aplicativo em **PHP 8 + MySQL** (preto, branco e roxo) para agências: cadastro 
 4. **Instalador:** abra `https://seudominio.com/install.php`, informe os dados do MySQL e crie o administrador.
 5. **Apague `install.php`** do servidor.
 6. **SSL:** ative o SSL grátis e descomente o redirecionamento HTTPS no `.htaccess`.
-7. **Alertas:** em *Configurações* informe e-mails/WhatsApp e clique em **Enviar teste**.
+7. **Alertas:** em *Configurações* preencha o SMTP (Hostinger: `smtp.hostinger.com`, porta 465, SSL, com uma caixa de e-mail criada no hPanel), o WhatsApp e, se quiser, ligue os lembretes aos clientes; depois clique em **Enviar teste**.
 8. **Cron:** *Avançado → Cron Jobs* → diário (ex.: 08:00) com o comando exibido em *Configurações*, algo como  
    `/usr/bin/php /home/uXXXX/domains/seudominio.com/public_html/cron.php`
 
@@ -39,8 +39,12 @@ Aplicativo em **PHP 8 + MySQL** (preto, branco e roxo) para agências: cadastro 
 Em *Clientes → (cliente) → aba Portal*, crie o login e envie ao cliente o link `https://seudominio.com/portal.php` com e-mail e senha. Instalações antigas criam a tabela `client_users` automaticamente no primeiro acesso após a atualização.
 
 ## WhatsApp
-- **CallMeBot (grátis):** envie “I allow callmebot to send me messages” ao número deles no WhatsApp para obter a *apikey* e informe seu número + apikey.
-- **Webhook:** Z-API, Evolution API, Make, n8n… recebem `POST` JSON `{"phone","number","message","text"}` (token opcional como `Authorization: Bearer`).
+Os números da equipe vão separados por vírgula (DDD + número; o 55 é colocado sozinho). Os lembretes aos clientes usam o WhatsApp (ou telefone) do cadastro do cliente.
+- **Z-API:** ID da instância + token da instância (+ Client-Token, se a segurança da conta estiver ativa).
+- **Evolution API:** URL do servidor + nome da instância + API key (endpoint `/message/sendText/{instância}`).
+- **WhatsApp Cloud API (Meta):** ID do número + token permanente. Mensagens iniciadas pela empresa exigem um **modelo aprovado** (categoria Utilidade) com corpo `{{1}}`; o texto do aviso vai nessa variável.
+- **Webhook genérico:** Make, n8n… recebem `POST` JSON `{"phone","number","message","text"}` (token opcional como `Authorization: Bearer`).
+- **CallMeBot (grátis, só equipe):** envie “I allow callmebot to send me messages” ao número deles para obter a *apikey*. Só entrega no seu próprio número, então não serve para lembrar clientes.
 
 ## Arquivos enviados (boleto e quitação)
 Ficam em `storage/uploads` (bloqueada ao acesso direto) com nome aleatório e só saem por download autenticado — equipe pelo painel, cliente apenas os do próprio cadastro e que não sejam *internos*. Aceita PDF, PNG/JPG/WEBP, Word e Excel, até 15 MB cada e 10 por envio (o limite do servidor, `post_max_size`, também vale). Faça backup dessa pasta junto com o banco.
