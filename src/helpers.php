@@ -173,7 +173,7 @@ function guess_link_type(string $url): string
 }
 
 /** Versão do CSS que este código espera (precisa bater com `--bay-css` no fim de assets/css/app.css; some 1 ao mudar o CSS). */
-const ASSET_CSS_VERSION = '4';
+const ASSET_CSS_VERSION = '5';
 
 /**
  * CSS e JS vão DENTRO da página: hospedagens/CDNs costumam guardar arquivos estáticos (.css/.js) por muito tempo,
@@ -247,6 +247,7 @@ function icon(string $n, int $s = 20): string
         'menu' => '<path d="M3 6h18M3 12h18M3 18h18"/>',
         'x' => '<path d="M18 6L6 18M6 6l12 12"/>',
         'sun' => '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4l1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+        'moon' => '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
         'help' => '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>',
         'play' => '<path d="M5 3l14 9-14 9z"/>',
         'tasks' => '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12l3 3 5-6"/>',

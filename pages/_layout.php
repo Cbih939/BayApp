@@ -32,7 +32,7 @@ $taskOver = tasks_overdue_mine((int) $me['id']);
       <button class="btn ghost sm full" id="startTour"><?= icon('play', 16) ?> Tour guiado</button>
       <div class="me"><span class="avatar"><?= e(initials($me['nome'])) ?></span>
         <div><b><?= e($me['nome']) ?></b><small><?= e(ROLES[$me['papel']]) ?></small></div></div>
-      <div class="side-btns"><button class="icon-btn" id="themeBtn" title="Tema claro/escuro"><?= icon('sun') ?></button>
+      <div class="side-btns"><button class="theme-tg" id="themeBtn" title="Tema claro/escuro" aria-label="Alternar tema claro/escuro"><span class="tg-l"><?= icon('sun', 15) ?></span><span class="tg-d"><?= icon('moon', 15) ?></span></button>
         <button class="icon-btn" data-open="dlg-pwd" title="Alterar minha senha"><?= icon('shield') ?></button>
         <a class="icon-btn" href="<?= url('logout') ?>" title="Sair"><?= icon('logout') ?></a></div>
     </div>
