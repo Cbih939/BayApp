@@ -407,4 +407,9 @@ button.pill{background:transparent;font:inherit;cursor:pointer}
   .cal-dot{width:7px;height:7px;border-radius:50%;display:block}.cal-dots b{font-size:.58rem;color:var(--muted);line-height:1}
   .cal-nav h3{min-width:0;font-size:1.1rem}
 }
-:root{--bay-css:"5"}
+/* ---------- configurações: avisos ---------- */
+.cfg-h{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.cfg-h h4{display:flex;align-items:center;gap:8px}
+.cfg-test{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.cfg-test input{width:min(280px,70vw)}
+.cfg-log{padding:0;margin:10px 0 0}.cfg-log td{vertical-align:top}.cfg-log td:first-child{white-space:nowrap}.cfg-dest{word-break:break-all;max-width:220px}
+.cfg-err{display:block;margin-top:4px;font-size:.74rem;max-width:280px}
+:root{--bay-css:"6"}

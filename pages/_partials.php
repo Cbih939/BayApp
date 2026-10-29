@@ -121,6 +121,9 @@ function dlg_bill(?int $client = null, string $ret = ''): void
   <div class="field"><label>Avisar a equipe nos marcos de 30, 15 e 7 dias por</label>
     <div class="switches"><label class="switch"><input type="checkbox" name="avisar_email" checked><span></span> <?= icon('mail', 16) ?> E-mail</label>
     <label class="switch"><input type="checkbox" name="avisar_whatsapp" checked><span></span> <?= icon('phone', 16) ?> WhatsApp</label></div></div>
+  <div class="field"><label>Lembrete para o cliente</label>
+    <div class="switches"><label class="switch"><input type="checkbox" name="avisar_cliente" checked><span></span> <?= icon('bell', 16) ?> Lembrar o cliente do pagamento</label></div>
+    <p class="note">Usa o e-mail e o WhatsApp do cadastro do cliente, nos dias definidos em Configurações<?= setting('cli_notify') === '1' ? '' : ' (hoje desligado)' ?>.</p></div>
   <label>Observações internas <small class="muted">(o cliente não vê)</small><textarea name="notas" rows="2"></textarea></label>
   <footer class="modal-f"><button type="button" class="btn ghost" data-close>Cancelar</button><button class="btn primary">Salvar serviço</button></footer>
 </form></dialog>

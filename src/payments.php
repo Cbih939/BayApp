@@ -31,7 +31,7 @@ function cycle_event(array $b, string $dia, string $estado, ?array $pay, bool $p
     if (!$portal) {
         $ev['bill'] = ['id' => (int) $b['id'], 'client_id' => (int) $b['client_id'], 'tipo' => $b['tipo'], 'descricao' => $b['descricao'], 'fornecedor' => $b['fornecedor'],
             'valor' => $b['valor'], 'vencimento' => $b['vencimento'], 'recorrencia' => $b['recorrencia'], 'modelo' => $model,
-            'avisar_email' => (int) $b['avisar_email'], 'avisar_whatsapp' => (int) $b['avisar_whatsapp'], 'notas' => $b['notas']];
+            'avisar_email' => (int) $b['avisar_email'], 'avisar_whatsapp' => (int) $b['avisar_whatsapp'], 'avisar_cliente' => (int) $b['avisar_cliente'], 'notas' => $b['notas']];
     }
     return $ev;
 }

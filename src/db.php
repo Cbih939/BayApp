@@ -52,14 +52,20 @@ function update(string $table, int $id, array $data): void
     q("UPDATE $table SET $set WHERE id = ?", [...array_values($data), $id]);
 }
 
-function setting(string $key, string $default = ''): string
+/** Configurações lidas uma vez por requisição; set_setting() mantém o cache em dia. */
+function &settings_cache(): array
 {
     static $cache = null;
     if ($cache === null) {
         $cache = [];
         foreach (rows('SELECT chave, valor FROM settings') as $r) $cache[$r['chave']] = (string) $r['valor'];
     }
-    return $cache[$key] ?? $default;
+    return $cache;
+}
+
+function setting(string $key, string $default = ''): string
+{
+    return settings_cache()[$key] ?? $default;
 }
 
 function set_setting(string $key, string $value): void
@@ -69,6 +75,8 @@ function set_setting(string $key, string $value): void
     } else {
         q('INSERT INTO settings (chave, valor) VALUES (?, ?)', [$key, $value]);
     }
+    $cache = &settings_cache();
+    $cache[$key] = $value;
 }
 
 function audit(string $acao, string $detalhe = ''): void
@@ -110,7 +118,7 @@ function schema_sql(string $driver): array
             id $pk, client_id INT NOT NULL, tipo VARCHAR(40) NOT NULL, descricao VARCHAR(200) NOT NULL,
             fornecedor VARCHAR(120) NULL, valor DECIMAL(12,2) NULL, vencimento VARCHAR(10) NOT NULL,
             recorrencia VARCHAR(10) NOT NULL DEFAULT 'nenhuma', status VARCHAR(10) NOT NULL DEFAULT 'pendente',
-            pago_em VARCHAR(19) NULL, avisar_email INT NOT NULL DEFAULT 1, avisar_whatsapp INT NOT NULL DEFAULT 1,
+            pago_em VARCHAR(19) NULL, avisar_email INT NOT NULL DEFAULT 1, avisar_whatsapp INT NOT NULL DEFAULT 1, avisar_cliente INT NOT NULL DEFAULT 1,
             notas TEXT NULL, modelo VARCHAR(10) NULL, criado_em VARCHAR(19) NOT NULL,
             FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE){$eng}",
         "CREATE TABLE IF NOT EXISTS alert_log (
@@ -192,6 +200,9 @@ function schema_sql(string $driver): array
             user_id INT NULL, criado_em VARCHAR(19) NOT NULL,
             FOREIGN KEY (billing_id) REFERENCES billings(id) ON DELETE CASCADE,
             FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE){$eng}",
+        "CREATE TABLE IF NOT EXISTS notify_log (
+            id $pk, canal VARCHAR(12) NOT NULL, destino VARCHAR(250) NOT NULL, assunto VARCHAR(200) NULL,
+            status VARCHAR(8) NOT NULL, detalhe VARCHAR(250) NULL, criado_em VARCHAR(19) NOT NULL){$eng}",
         'CREATE INDEX idx_cred_client ON credentials(client_id)',
         'CREATE INDEX idx_bill_venc ON billings(vencimento)',
         'CREATE INDEX idx_bill_client ON billings(client_id)',
@@ -213,11 +224,12 @@ function schema_sql(string $driver): array
         'CREATE INDEX idx_contract_client ON contracts(client_id)',
         'CREATE INDEX idx_pay_client ON payments(client_id, competencia)',
         'CREATE INDEX idx_pay_bill ON payments(billing_id)',
+        'CREATE INDEX idx_notify_when ON notify_log(criado_em)',
     ];
     return $t;
 }
 
-const SCHEMA_VERSION = '9';
+const SCHEMA_VERSION = '10';
 
 /** Atualiza instalações antigas (cria tabelas novas) uma única vez. */
 function ensure_schema(): void
@@ -236,7 +248,8 @@ function create_schema(PDO $pdo, string $driver): void
     // Coluna nova em instalações antigas (falha silenciosa se já existir).
     foreach (['ALTER TABLE tasks ADD COLUMN link VARCHAR(700) NULL', 'ALTER TABLE billings ADD COLUMN modelo VARCHAR(10) NULL',
         'ALTER TABLE payments ADD COLUMN vencimento VARCHAR(10) NULL',
-        'ALTER TABLE posts ADD COLUMN imagem VARCHAR(60) NULL', 'ALTER TABLE posts ADD COLUMN imagem_nome VARCHAR(255) NULL'] as $alter) {
+        'ALTER TABLE posts ADD COLUMN imagem VARCHAR(60) NULL', 'ALTER TABLE posts ADD COLUMN imagem_nome VARCHAR(255) NULL',
+        'ALTER TABLE billings ADD COLUMN avisar_cliente INT NOT NULL DEFAULT 1'] as $alter) {
         try { $pdo->exec($alter); } catch (PDOException $e) {}
     }
 
