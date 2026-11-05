@@ -1,7 +1,8 @@
 <?php
 /* Calendário de pagamentos dos clientes: vencimentos em aberto, pagos e previstos, com boleto e quitação anexados. */
 $fc = (int) ($_GET['cliente'] ?? 0);
-$clients = rows('SELECT id, nome FROM clients ORDER BY nome');
+if (!client_allowed($fc)) $fc = 0;
+$clients = visible_clients();
 $open = cycle_open_events($fc ?: null);
 $over = count(array_filter($open, fn($e) => $e['estado'] === 'atrasado'));
 $sumOpen = array_sum(array_map(fn($e) => (float) $e['valor'], $open));

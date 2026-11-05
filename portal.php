@@ -8,7 +8,8 @@ start_session();
 $empresa = setting('empresa_nome', 'BayApp');
 $p = preg_replace('/[^a-z_]/', '', (string) ($_GET['p'] ?? 'inicio'));
 
-if ($p === 'sair') { audit('portal_logout'); unset($_SESSION['cuid']); redirect('portal.php'); }
+if ($p === 'sair') { audit('portal_logout'); unset($_SESSION['cuid'], $_SESSION['csv']); redirect('portal.php'); }
+if ($p === 'esqueci' || $p === 'redefinir') recover_page('client', $p, 'portal.php');
 
 $me = portal_user();
 if (!$me) {
@@ -40,7 +41,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $r = row('SELECT senha_hash FROM client_users WHERE id = ?', [$me['id']]);
         if (!password_verify($cur, $r['senha_hash'])) throw new RuntimeException('Senha atual incorreta.');
         if (strlen($new) < 8) throw new RuntimeException('A nova senha precisa ter ao menos 8 caracteres.');
-        update('client_users', (int) $me['id'], ['senha_hash' => password_hash($new, PASSWORD_DEFAULT)]);
+        $sv = (int) $me['sess_ver'] + 1;
+        update('client_users', (int) $me['id'], ['senha_hash' => password_hash($new, PASSWORD_DEFAULT), 'sess_ver' => $sv]);
+        $_SESSION['csv'] = $sv;
         flash('Senha alterada com sucesso.');
     } catch (RuntimeException $ex) {
         flash($ex->getMessage(), 'err');

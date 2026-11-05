@@ -1,6 +1,6 @@
 <?php
 $cid = (int) ($_GET['id'] ?? 0);
-$cur = $cid ? row('SELECT id, nome, empresa FROM clients WHERE id = ?', [$cid]) : null;
+$cur = $cid && client_allowed($cid) ? row('SELECT id, nome, empresa FROM clients WHERE id = ?', [$cid]) : null;
 if ($cur) chat_mark_read((int) $cur['id'], 'team'); // antes de listar, para a conversa aberta não aparecer como não lida
 $convs = chat_conversations();
 if (!$cur && $convs) {
@@ -8,7 +8,7 @@ if (!$cur && $convs) {
     chat_mark_read((int) $cur['id'], 'team');
     $convs = chat_conversations();
 }
-$others = rows("SELECT id, nome FROM clients WHERE status = 'ativo' ORDER BY nome");
+$others = visible_clients(true);
 ?>
 <div class="chat-layout">
   <aside class="card chat-side">

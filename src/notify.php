@@ -26,7 +26,6 @@ function http_request(string $url, ?string $json = null, array $headers = []): a
     $body = curl_exec($ch);
     $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $err = curl_error($ch);
-    curl_close($ch);
     return [$code, (string) $body, $err];
 }
 
@@ -222,14 +221,14 @@ function send_whatsapp(string $text, ?string $to = null): array
 
 function wa_send_one(string $phone, string $text): array
 {
-    $key = setting('wa_apikey');
+    $key = secret_setting('wa_apikey');
     $inst = setting('wa_instance');
     switch (setting('wa_provider')) {
         case 'callmebot':
             [$code, $body, $err] = http_request('https://api.callmebot.com/whatsapp.php?phone=' . $phone . '&text=' . rawurlencode($text) . '&apikey=' . rawurlencode($key));
             break;
         case 'zapi':
-            $hdr = setting('wa_client_token') !== '' ? ['Client-Token: ' . setting('wa_client_token')] : [];
+            $hdr = setting('wa_client_token') !== '' ? ['Client-Token: ' . secret_setting('wa_client_token')] : [];
             [$code, $body, $err] = http_request('https://api.z-api.io/instances/' . rawurlencode($inst) . '/token/' . rawurlencode($key) . '/send-text',
                 json_encode(['phone' => $phone, 'message' => $text]), $hdr);
             break;

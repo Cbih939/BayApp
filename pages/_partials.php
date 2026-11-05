@@ -4,7 +4,7 @@
 function client_options(?int $sel = null, bool $withEmpty = false): string
 {
     $o = $withEmpty ? '<option value="">— Geral (sem cliente) —</option>' : '<option value="" disabled selected>Selecione o cliente…</option>';
-    foreach (rows('SELECT id, nome FROM clients WHERE status = \'ativo\' ORDER BY nome') as $c) {
+    foreach (visible_clients(true) as $c) {
         $o .= '<option value="' . $c['id'] . '"' . ($sel === (int) $c['id'] ? ' selected' : '') . '>' . e($c['nome']) . '</option>';
     }
     return $o;
@@ -145,6 +145,23 @@ function dlg_link(?int $client = null, string $ret = ''): void
 <?php }
 
 /** Caixa de conversa (renderizada no servidor; assets/js/chat.js faz o polling). $viewer: 'team' ou 'client'. */
+/** Formulário de cliente (novo e editar), usado na lista e na página do cliente. */
+function dlg_client(string $ret): void
+{ ?>
+<dialog id="dlg-client" class="modal"><form method="post" class="stack"><?= csrf_field() ?>
+  <input type="hidden" name="action" value="client_save"><input type="hidden" name="id" value=""><input type="hidden" name="return" value="<?= e($ret) ?>">
+  <header class="modal-h"><h3 data-title="Novo cliente|Editar cliente">Novo cliente</h3><button type="button" class="icon-btn" data-close><?= icon('x') ?></button></header>
+  <div class="grid2"><label>Nome / contato<input name="nome" required></label><label>Empresa<input name="empresa"></label></div>
+  <div class="grid2"><label>E-mail<input type="email" name="email"></label><label>CPF / CNPJ<input name="documento"></label></div>
+  <div class="grid2"><label>Telefone<input name="telefone"></label><label>WhatsApp<input name="whatsapp" placeholder="5511999999999"></label></div>
+  <div class="grid2"><label>Site<input name="site" placeholder="https://"></label>
+    <label>Status<select name="status"><option value="ativo">Ativo</option><option value="inativo">Inativo</option></select></label></div>
+  <label>Senha do portal <span class="muted">(exige e-mail; vazio = gerar automaticamente em cliente novo, ou manter a atual ao editar)</span><div class="pwwrap"><input name="senha" type="text" class="mono" minlength="8" autocomplete="new-password"><button type="button" class="icon-btn" data-gen title="Gerar senha forte"><?= icon('dice') ?></button></div></label>
+  <label>Observações<textarea name="notas" rows="3"></textarea></label>
+  <footer class="modal-f"><button type="button" class="btn ghost" data-close>Cancelar</button><button class="btn primary">Salvar cliente</button></footer>
+</form></dialog>
+<?php }
+
 function render_chat_box(int $clientId, string $viewer, string $api, string $emptyMsg): void
 {
     chat_mark_read($clientId, $viewer);

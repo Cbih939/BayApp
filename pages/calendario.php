@@ -1,6 +1,7 @@
 <?php
 $fc = (int) ($_GET['cliente'] ?? 0);
-$clients = rows('SELECT id, nome FROM clients ORDER BY nome');
+if (!client_allowed($fc)) $fc = 0;
+$clients = visible_clients();
 ?>
 <div class="sec-h big"><div><h3>Calendário de postagem</h3><p class="muted">Veja e planeje as publicações de todos os clientes. Clique em um post para ler o conteúdo, ou em “Adicionar” no dia.</p></div></div>
 <form class="filters" method="get"><input type="hidden" name="p" value="calendario"><input type="hidden" name="m" value="<?= e(cal_filters($_GET)['m']) ?>">

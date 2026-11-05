@@ -55,7 +55,7 @@ function cycle_open_events(?int $cid, bool $portal = false): array
 {
     $today = date('Y-m-d');
     $out = [];
-    foreach (rows("SELECT b.*, c.nome AS cliente FROM billings b JOIN clients c ON c.id = b.client_id WHERE b.status = 'pendente'" . ($cid ? ' AND b.client_id = ?' : '') . ' ORDER BY b.vencimento', $cid ? [$cid] : []) as $b) {
+    foreach (rows("SELECT b.*, c.nome AS cliente FROM billings b JOIN clients c ON c.id = b.client_id WHERE b.status = 'pendente'" . ($cid ? ' AND b.client_id = ?' : '') . client_scope('b.client_id') . ' ORDER BY b.vencimento', $cid ? [$cid] : []) as $b) {
         $out[] = cycle_event($b, $b['vencimento'], $b['vencimento'] < $today ? 'atrasado' : 'aberto', null, $portal);
     }
     cycle_attach_files($out, $portal);
@@ -69,7 +69,7 @@ function cycle_paid_events(?int $cid, bool $portal = false, ?string $from = null
     foreach (rows('SELECT billing_id, MAX(id) m FROM payments GROUP BY billing_id') as $r) $last[(int) $r['billing_id']] = (int) $r['m'];
     $out = [];
     foreach (rows('SELECT p.id AS pid, p.competencia, p.vencimento AS pvenc, p.valor AS pvalor, p.pago_em AS ppago, b.*, c.nome AS cliente
-        FROM payments p JOIN billings b ON b.id = p.billing_id JOIN clients c ON c.id = p.client_id' . ($cid ? ' WHERE p.client_id = ?' : '') . ' ORDER BY p.pago_em DESC, p.id DESC', $cid ? [$cid] : []) as $r) {
+        FROM payments p JOIN billings b ON b.id = p.billing_id JOIN clients c ON c.id = p.client_id WHERE 1 = 1' . ($cid ? ' AND p.client_id = ?' : '') . client_scope('p.client_id') . ' ORDER BY p.pago_em DESC, p.id DESC', $cid ? [$cid] : []) as $r) {
         $dia = $r['pvenc'] ?: $r['competencia'] . '-01';
         if (($from && $dia < $from) || ($to && $dia > $to)) continue;
         $pay = ['valor' => $r['pvalor'], 'pago_em' => $r['ppago'], 'reabrir' => $r['status'] === 'pago' && ($last[(int) $r['id']] ?? 0) === (int) $r['pid']];
@@ -84,7 +84,7 @@ function cycle_paid_events(?int $cid, bool $portal = false, ?string $from = null
 function cycle_projected_events(?int $cid, string $from, string $to, bool $portal): array
 {
     $out = [];
-    foreach (rows("SELECT b.*, c.nome AS cliente FROM billings b JOIN clients c ON c.id = b.client_id WHERE b.status = 'pendente'" . ($cid ? ' AND b.client_id = ?' : ''), $cid ? [$cid] : []) as $b) {
+    foreach (rows("SELECT b.*, c.nome AS cliente FROM billings b JOIN clients c ON c.id = b.client_id WHERE b.status = 'pendente'" . ($cid ? ' AND b.client_id = ?' : '') . client_scope('b.client_id'), $cid ? [$cid] : []) as $b) {
         foreach (bill_occurrences($b, $from, $to) as $d) if ($d !== $b['vencimento']) $out[] = cycle_event($b, $d, 'previsto', null, $portal);
     }
     cycle_attach_files($out, $portal);

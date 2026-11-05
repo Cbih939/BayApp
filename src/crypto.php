@@ -1,6 +1,14 @@
 <?php
 declare(strict_types=1);
 
+/** Configurações guardadas criptografadas no banco. */
+const SECRET_SETTINGS = ['wa_apikey', 'wa_client_token'];
+
+function secret_setting(string $key): string
+{
+    return decrypt_secret(setting($key));
+}
+
 function app_key(): string
 {
     $k = base64_decode((string) cfg('app_key', ''), true);

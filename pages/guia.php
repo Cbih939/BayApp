@@ -1,29 +1,27 @@
 <?php
 $steps = [
-  ['briefcase', 'clientes', '1. Cadastre o cliente', 'Em <b>Clientes</b> clique em “Novo cliente”. Só o nome é obrigatório. Cada cliente ganha uma página com abas de contrato, calendário, senhas, pagamentos, tarefas e links.'],
-  ['package', 'pacotes', '2. Crie os pacotes', 'Em <b>Pacotes</b> defina o que cada plano garante por mês (ex.: 12 posts, 4 stories, 1 relatório). Depois vincule o pacote ao contrato do cliente.'],
-  ['file', 'clientes', '3. Registre o contrato', 'Na aba <b>Contrato &amp; pacote</b> do cliente informe início, término, valor, cobrança e o link do contrato. Ali você vê também o que o cliente tem direito e quanto já foi usado no mês.'],
-  ['cal', 'calendario', '4. Planeje o calendário de postagem', 'No <b>Calendário</b> (ou na aba do cliente) clique em “Adicionar” no dia, escolha canal, formato, legenda e o link da arte. Acompanhe o <b>fluxo</b> do conteúdo (Rascunho → Conteúdo → Aprovação interna → Aprovação do cliente → Ajustes → Aguardando agendamento → Aprovado e agendado → Concluído) na faixa de status acima do calendário; clique num status para filtrar. Clique no post para ler, mudar o status, clonar ou editar.'],
-  ['key', 'senhas', '5. Guarde os acessos', 'Em “Novo acesso” escolha o tipo (Instagram, site, hospedagem…) — título e link se preenchem sozinhos. Senhas ficam criptografadas.'],
-  ['card', 'clientes', '6. Registre os pagamentos do cliente', 'Na aba <b>Pagamentos</b> do cliente, “Novo serviço”: escolha <b>vencimento fixo</b> (1x ao ano, ex.: domínio) ou <b>variável</b> (mês a mês, ex.: hospedagem com valor que muda). Veja o que está <b>em aberto</b> e o que já foi <b>pago</b>.'],
-  ['clip', 'pagamentos', '7. Anexe boleto e quitação', 'No <b>Calendário de pagamentos</b> (ou na aba do cliente) clique no pagamento e envie o boleto e, depois de pago, a quitação — pode enviar vários arquivos. O cliente baixa tudo no portal; arquivos “Interno” só a equipe vê.'],
-  ['wallet', 'vencimentos', '8. Controle os vencimentos da Bay Groups', 'Em <b>Vencimentos</b> ficam as contas da própria empresa (hospedagem, domínios, ferramentas, impostos…), com alertas de <b>30, 15 e 7 dias</b> por e-mail e WhatsApp.'],
-  ['bell', 'config', '9. Ative os alertas', 'Em <b>Configurações</b> informe e-mails e WhatsApp, crie o cron job diário na Hostinger e use “Enviar teste”.'],
-  ['tasks', 'tarefas', '10. Organize as tarefas', 'Crie cartões com cliente, responsável, prazo, <b>link</b> e <b>checklist</b>. Clique na tarefa para ler os detalhes, ver as <b>pastas e links do cliente</b> e marcar os itens; arraste entre as colunas para mudar o status.'],
-  ['chart', 'relatorios', '11. Acompanhe os relatórios', 'Em <b>Relatórios</b> escolha <b>Financeiro</b> (pagamentos dos clientes, vencimentos internos, início do contrato, último mês pago e próximo vencimento) ou <b>Tarefas</b>, em gráficos de barras com PDF e Excel.'],
-  ['folder', 'links', '12. Pastas, links e tarefas juntos', 'Em <b>Pastas &amp; Links</b> cada cliente mostra o Drive, o Canva e a Agenda ao lado das tarefas em aberto dele.'],
-  ['users', 'clientes', '13. Libere o portal do cliente', 'Dentro do cliente, aba <b>Portal</b>: crie um login para ele acompanhar pagamentos (com boleto e quitação) e links em <code>portal.php</code>. Senhas e observações internas nunca aparecem.'],
-  ['users', 'usuarios', '14. Monte a equipe', 'Admin cria usuários <b>Administrador</b>, <b>Designer</b> ou <b>Desenvolvedor</b>, cada um com permissões próprias.'],
+  ['briefcase', 'clientes', '1. Cadastre o cliente', 'Em <b>Clientes</b> clique em “Novo cliente”. Só o nome é obrigatório. Ao abrir o cliente, tudo dele fica nas abas: pacote, tarefas, calendário, pagamentos, relatórios, mensagens, pastas e links, senhas e portal.'],
+  ['package', 'pacotes', '2. Crie os pacotes', 'Defina o que cada plano garante por mês (ex.: 12 posts, 4 stories, 1 relatório). O link “Gerenciar os pacotes” fica na aba <b>Pacote</b> do cliente e no Início.'],
+  ['file', 'clientes', '3. Registre o contrato', 'Na aba <b>Pacote</b> do cliente informe início, término, valor, cobrança e o link do contrato. Ali você vê o que o cliente tem direito e quanto já foi usado no mês.'],
+  ['tasks', 'clientes', '4. Organize as tarefas', 'Na aba <b>Tarefas</b> crie tarefas com responsável, prazo, link e checklist. A lista mostra uma linha por tarefa: clique para abrir os detalhes. Se preferir, use a visão em quadro para arrastar entre colunas.'],
+  ['cal', 'clientes', '5. Planeje o calendário', 'Na aba <b>Calendário</b> clique em “Adicionar” no dia, escolha canal, formato, legenda e arte, e acompanhe o fluxo de aprovação do conteúdo.'],
+  ['card', 'clientes', '6. Registre os pagamentos', 'Na aba <b>Pagamentos</b>, “Novo serviço”: vencimento fixo (1x ao ano), variável (mês a mês) ou único. Clique no pagamento para anexar boleto e quitação; o cliente baixa no portal.'],
+  ['chart', 'clientes', '7. Acompanhe os relatórios', 'Na aba <b>Relatórios</b> veja financeiro e tarefas do cliente, com PDF, Excel e envio por WhatsApp.'],
+  ['chat', 'clientes', '8. Converse com o cliente', 'A aba <b>Mensagens</b> é o chat com o portal. O número ao lado de <b>Clientes</b> no menu avisa quando há mensagem nova.'],
+  ['key', 'clientes', '9. Guarde links e senhas', 'As abas <b>Pastas &amp; Links</b> e <b>Senhas</b> guardam o Drive, o Canva e os acessos do cliente, com as senhas criptografadas.'],
+  ['users', 'clientes', '10. Libere o portal do cliente', 'Na aba <b>Portal</b> crie um login para o cliente acompanhar pagamentos e links. Senhas e observações internas nunca aparecem.'],
+  ['home', 'dashboard', '11. Veja todos os clientes de uma vez', 'No <b>Início</b>, a faixa “Todos os clientes” abre as visões gerais: todas as tarefas, calendário, pagamentos, relatórios e mensagens. Os <b>vencimentos da empresa</b> (contas da própria agência) também ficam lá.'],
+  ['bell', 'config', '12. Ative os alertas', 'Em <b>Configurações</b> informe e-mails e WhatsApp, crie o cron job diário na Hostinger e use “Enviar teste”.'],
+  ['users', 'usuarios', '13. Monte a equipe', 'Em <b>Equipe</b> crie usuários e escolha quais clientes cada um pode ver.'],
 ];
 ?>
-<section class="hero anim-up"><div><p class="eyebrow">Guia de uso</p><h1>Do zero ao primeiro alerta em 14 passos</h1>
-  <p class="muted">Siga a ordem abaixo ou faça o tour interativo pelo menu lateral.</p></div>
-  <button class="btn primary" id="startTour2"><?= icon('play', 18) ?> Iniciar tour guiado</button></section>
-<section class="grid cards guide"><?php foreach ($steps as $i => [$ico, $to, $t, $d]): if (isset($NAV[$to]) && $NAV[$to][2] && !can($NAV[$to][2])) continue; ?>
-  <a class="card tilt anim-up" style="--i:<?= $i ?>" href="<?= url($to) ?>"><span class="stat-ico"><?= icon($ico, 22) ?></span><h4><?= $t ?></h4><p class="muted"><?= $d ?></p><span class="link">Abrir →</span></a>
+<section class="hero"><div><h1>Guia de uso</h1><p class="muted">Siga a ordem abaixo ou faça o tour pelo menu.</p></div>
+  <button class="btn primary" id="startTour2"><?= icon('play', 16) ?> Iniciar tour guiado</button></section>
+<section class="grid cards guide"><?php foreach ($steps as [$ico, $to, $t, $d]): if (isset($NAV[$to]) && $NAV[$to][2] && !can($NAV[$to][2])) continue; ?>
+  <a class="card" href="<?= url($to) ?>"><span class="stat-ico"><?= icon($ico, 20) ?></span><h4><?= $t ?></h4><p class="muted"><?= $d ?></p><span class="link">Abrir →</span></a>
 <?php endforeach; ?></section>
-<section class="card anim-up"><h3>Dicas rápidas</h3><ul class="checklist">
-  <li>Use o campo <b>“Filtrar cards”</b> no topo de qualquer tela para achar algo na hora.</li>
+<section class="card"><h3>Dicas rápidas</h3><ul class="checklist">
+  <li>Use o campo <b>“Filtrar nesta página”</b> no topo para achar algo na hora.</li>
   <li>Cores dos vencimentos: <span class="chip tag-d30">16–30 dias</span> <span class="chip tag-d15">8–15 dias</span> <span class="chip tag-d7">até 7 dias</span> <span class="chip tag-over">vencido</span></li>
   <li>Toda visualização de senha e envio de alerta fica registrado no histórico.</li>
-  <li>Use o botão ☀ no menu lateral para alternar entre tema escuro e claro.</li></ul></section>
+  <li>Use o botão de sol e lua no menu lateral para alternar entre tema escuro e claro.</li></ul></section>

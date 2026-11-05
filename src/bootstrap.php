@@ -9,6 +9,9 @@ date_default_timezone_set($CONFIG['timezone'] ?? 'America/Sao_Paulo');
 require __DIR__ . '/helpers.php';
 require __DIR__ . '/db.php';
 require __DIR__ . '/crypto.php';
+require __DIR__ . '/security.php';
+require __DIR__ . '/qrcode.php';
+require __DIR__ . '/backup.php';
 require __DIR__ . '/auth.php';
 require __DIR__ . '/notify.php';
 require __DIR__ . '/chat.php';
@@ -20,4 +23,5 @@ require __DIR__ . '/payments.php';
 require __DIR__ . '/internal.php';
 require __DIR__ . '/reports.php';
 
+if (PHP_SAPI !== 'cli') web_security($CONFIG);
 if ($CONFIG) ensure_schema();

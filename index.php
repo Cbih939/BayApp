@@ -21,18 +21,35 @@ $NAV = [
     'guia'        => ['Guia', 'book', null],
     'config'      => ['Configurações', 'settings', 'settings'],
 ];
+/* O menu lateral só tem o essencial: o resto fica dentro de cada cliente (e as visões gerais, no Início). */
+$MENU = ['dashboard', 'clientes', 'senhas'];
+$MENU_BOTTOM = ['usuarios', 'guia', 'config'];
 $p = preg_replace('/[^a-z_]/', '', (string) ($_GET['p'] ?? 'dashboard'));
 
 /* ---------- Login / logout ---------- */
 if ($p === 'logout') { audit('logout'); session_destroy(); redirect('index.php'); }
+if ($p === 'esqueci' || $p === 'redefinir') recover_page('team', $p, 'index.php');
 if (!user()) {
     $error = '';
+    if (!empty($_SESSION['pre2fa'])) {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $error = !csrf_ok() ? 'Sessão expirada. Recarregue a página.' : (attempt_2fa(post('codigo')) ?? '');
+            if (!$error) redirect(url('dashboard', ['welcome' => 1]));
+        }
+        if (!empty($_SESSION['pre2fa'])) { require __DIR__ . '/pages/login_2fa.php'; exit; }
+    }
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = !csrf_ok() ? 'Sessão expirada. Recarregue a página.' : (attempt_login(post('email'), (string) ($_POST['senha'] ?? '')) ?? '');
         if (!$error) redirect(url('dashboard', ['welcome' => 1]));
     }
     require __DIR__ . '/pages/login.php';
     exit;
+}
+
+/* ---------- Verificação em duas etapas obrigatória: nada além da própria ativação até concluir ---------- */
+if (totp_must_enroll(user()) && !($p === 'seguranca' && ($_SERVER['REQUEST_METHOD'] !== 'POST' || in_array(post('action'), ['totp_start', 'totp_confirm', 'pwd_change'], true)))) {
+    if (in_array($p, ['chat_api', 'task_api', 'ajax'], true)) { http_response_code(403); header('Content-Type: application/json'); exit('{"erro":"Ative a verificação em duas etapas."}'); }
+    redirect(url('seguranca'));
 }
 
 /* ---------- AJAX: chat (polling) ---------- */
@@ -48,10 +65,11 @@ if ($p === 'task_api') {
         if ($a === 'item_toggle') {
             $it = row('SELECT id, task_id FROM task_items WHERE id = ?', [(int) ($_POST['id'] ?? 0)]);
             if (!$it) throw new RuntimeException('Item não encontrado.');
+            require_task((int) $it['task_id']);
             update('task_items', (int) $it['id'], ['feito' => post('feito') === '1' ? 1 : 0]);
         } elseif ($a === 'item_add') {
             $tid = (int) ($_POST['task_id'] ?? 0); $txt = mb_substr(post('texto'), 0, 300);
-            if (!row('SELECT id FROM tasks WHERE id = ?', [$tid])) throw new RuntimeException('Tarefa não encontrada.');
+            require_task($tid);
             if ($txt === '') throw new RuntimeException('Digite o item.');
             $newId = insert('task_items', ['task_id' => $tid, 'texto' => $txt, 'feito' => 0, 'ordem' => (int) val('SELECT COALESCE(MAX(ordem), 0) + 1 FROM task_items WHERE task_id = ?', [$tid])]);
             $it = ['task_id' => $tid];
@@ -82,7 +100,7 @@ if ($p === 'relatorio_export') {
 if ($p === 'download') {
     if (!can('billing.view')) { http_response_code(403); exit('Sem permissão.'); }
     $f = row('SELECT * FROM files WHERE id = ?', [(int) ($_GET['id'] ?? 0)]);
-    if (!$f) { http_response_code(404); exit('Arquivo não encontrado.'); }
+    if (!$f || !client_allowed((int) $f['client_id'])) { http_response_code(404); exit('Arquivo não encontrado.'); }
     audit('file_download', $f['nome']);
     serve_file($f);
 }
@@ -91,6 +109,7 @@ if ($p === 'download') {
 if ($p === 'calendario_pdf') {
     $f = cal_filters($_GET);
     $cid = (int) ($_GET['client'] ?? 0) ?: null;
+    if (!client_allowed($cid)) { http_response_code(403); exit('Sem acesso a este cliente.'); }
     $pdf = calendar_pdf($f['m'], $cid, $f['canal']);
     if ($pdf === null) {
         flash('Nenhuma postagem pronta neste mês (aguardando agendamento, aprovado e agendado ou concluído) para gerar o PDF.', 'err');
@@ -103,10 +122,23 @@ if ($p === 'calendario_pdf') {
     exit($pdf);
 }
 
+/* ---------- Download de backup ---------- */
+if ($p === 'backup_download') {
+    $f = can('settings') ? backup_path((string) ($_GET['f'] ?? '')) : null;
+    if (!$f) { http_response_code(404); exit('Backup não encontrado.'); }
+    audit('backup_download', basename($f));
+    header('Content-Type: application/gzip');
+    header('Content-Length: ' . filesize($f));
+    header('Content-Disposition: attachment; filename="' . basename($f) . '"');
+    header('Cache-Control: private, no-store');
+    readfile($f);
+    exit;
+}
+
 /* ---------- Imagem da arte de um post ---------- */
 if ($p === 'postimg') {
-    $f = can('posts.edit') || can('billing.view') || can('clients.edit') ? row('SELECT imagem AS arquivo, imagem_nome AS nome FROM posts WHERE id = ? AND imagem IS NOT NULL', [(int) ($_GET['id'] ?? 0)]) : null;
-    if (!$f) { http_response_code(404); exit('Imagem não encontrada.'); }
+    $f = can('posts.edit') || can('billing.view') || can('clients.edit') ? row('SELECT imagem AS arquivo, imagem_nome AS nome, client_id FROM posts WHERE id = ? AND imagem IS NOT NULL', [(int) ($_GET['id'] ?? 0)]) : null;
+    if (!$f || !client_allowed((int) $f['client_id'])) { http_response_code(404); exit('Imagem não encontrada.'); }
     serve_file($f);
 }
 
@@ -114,8 +146,8 @@ if ($p === 'postimg') {
 if ($p === 'ajax') {
     header('Content-Type: application/json');
     if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !csrf_ok() || !can('creds.view')) { http_response_code(403); exit('{"erro":"negado"}'); }
-    $c = row('SELECT id, titulo, senha_enc FROM credentials WHERE id = ?', [(int) ($_POST['id'] ?? 0)]);
-    if (!$c) { http_response_code(404); exit('{"erro":"não encontrado"}'); }
+    $c = row('SELECT id, titulo, senha_enc, client_id FROM credentials WHERE id = ?', [(int) ($_POST['id'] ?? 0)]);
+    if (!$c || !client_allowed((int) $c['client_id'])) { http_response_code(404); exit('{"erro":"não encontrado"}'); }
     audit('senha_revelada', $c['titulo']);
     exit(json_encode(['senha' => decrypt_secret($c['senha_enc'])]));
 }
@@ -141,7 +173,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 /* ---------- Renderização ---------- */
-if (!isset($NAV[$p]) && $p !== 'cliente') $p = 'dashboard';
+if (!isset($NAV[$p]) && $p !== 'cliente' && $p !== 'seguranca') $p = 'dashboard';
 if (isset($NAV[$p]) && $NAV[$p][2] && !can($NAV[$p][2])) { flash('Seu perfil não acessa esta área.', 'err'); redirect(url('dashboard')); }
 
 $me = user();

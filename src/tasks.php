@@ -48,7 +48,7 @@ function tasks_overdue_mine(int $uid): int
 function task_move_to(int $id, string $status): void
 {
     if (!isset(TASK_STATUS[$status])) throw new RuntimeException('Status inválido.');
-    if (!row('SELECT id FROM tasks WHERE id = ?', [$id])) throw new RuntimeException('Tarefa não encontrada.');
+    require_task($id);
     update('tasks', $id, ['status' => $status, 'concluida_em' => $status === 'feito' ? now() : null, 'atualizado_em' => now()]);
 }
 
@@ -71,7 +71,7 @@ function task_links_for(?int $cid): array
     static $map = null;
     if ($map === null) {
         $map = [];
-        foreach (rows('SELECT client_id, tipo, titulo, url FROM links ORDER BY tipo, titulo') as $l) {
+        foreach (rows('SELECT client_id, tipo, titulo, url FROM links WHERE 1 = 1' . client_scope('client_id', true) . ' ORDER BY tipo, titulo') as $l) {
             $map[(int) $l['client_id']][] = ['tipo' => LINK_TYPES[$l['tipo']] ?? 'Link', 'titulo' => $l['titulo'], 'url' => $l['url']];
         }
     }
@@ -137,6 +137,70 @@ function rows_all_done(array $list): array
     $done = array_values(array_filter($list, fn($t) => $t['status'] === 'feito'));
     usort($done, fn($a, $b) => strcmp((string) $b['concluida_em'], (string) $a['concluida_em']));
     return $done;
+}
+
+/** Lista resumida: uma linha por tarefa. Clicar na linha abre o popup da tarefa. */
+function render_task_rows(array $tasks, bool $showClient = true, bool $compact = false): void
+{
+    $cls = 'tlist' . ($showClient ? '' : ' no-client') . ($compact ? ' compact' : ''); ?>
+    <div class="<?= $cls ?>" role="list">
+      <div class="trow-h" aria-hidden="true"><span>Tarefa</span><?php if ($showClient): ?><span class="tr-client">Cliente</span><?php endif; ?><span class="tr-user">Responsável</span><span class="tr-date">Prazo</span><span class="tr-prio">Prioridade</span><span class="tr-status">Status</span></div>
+      <?php foreach ($tasks as $t): render_task_row($t, $showClient); endforeach; ?>
+    </div>
+    <?php
+}
+
+function render_task_row(array $t, bool $showClient): void
+{
+    [$cls, $label] = task_urgency($t);
+    [$cd, $ct] = task_progress((int) $t['id']);
+    ?>
+    <div class="trow task prio-<?= e($t['prioridade']) ?> <?= $t['status'] === 'feito' ? 'done' : '' ?>" role="button" tabindex="0" data-id="<?= (int) $t['id'] ?>" data-item="<?= e(json_encode(task_item($t), JSON_UNESCAPED_UNICODE)) ?>" aria-label="Abrir tarefa <?= e($t['titulo']) ?>">
+      <div class="tr-title"><i class="pdot" title="Prioridade <?= e(TASK_PRIO[$t['prioridade']] ?? '') ?>"></i><div class="tr-name"><b><?= e($t['titulo']) ?></b>
+        <?php if ($ct): ?><div class="tprog" title="<?= $cd ?> de <?= $ct ?> itens do checklist"><span class="bar"><i style="width:<?= (int) round(100 * $cd / $ct) ?>%"></i></span><small><?= $cd ?>/<?= $ct ?></small></div><?php endif; ?><span class="chips"></span></div></div>
+      <?php if ($showClient): ?><div class="tr-client"><?php if ($t['cliente']): ?><a href="<?= url('cliente', ['id' => $t['client_id'], 'tab' => 't-task']) ?>"><?= e($t['cliente']) ?></a><?php else: ?><span class="muted">Geral</span><?php endif; ?></div><?php endif; ?>
+      <div class="tr-user"><?php if ($t['responsavel']): ?><span class="avatar xs"><?= e(initials($t['responsavel'])) ?></span> <span><?= e(explode(' ', $t['responsavel'])[0]) ?></span><?php else: ?><span class="muted">—</span><?php endif; ?></div>
+      <div class="tr-date"><span class="chip tag-<?= $cls ?>"><?= e($label) ?></span></div>
+      <div class="tr-prio muted"><?= e(TASK_PRIO[$t['prioridade']] ?? '') ?></div>
+      <div class="tr-status"><span class="st st-<?= e($t['status']) ?>"><?= e(TASK_STATUS[$t['status']] ?? '') ?></span></div>
+    </div>
+    <?php
+}
+
+/** Botões Lista / Quadro. */
+function render_task_view_toggle(string $view, callable $href): void
+{ ?>
+    <span class="seg"><a class="pill <?= $view === 'lista' ? 'active' : '' ?>" href="<?= e($href('lista')) ?>"><?= icon('menu', 15) ?> Lista</a>
+      <a class="pill <?= $view === 'quadro' ? 'active' : '' ?>" href="<?= e($href('quadro')) ?>"><?= icon('tasks', 15) ?> Quadro</a></span>
+<?php }
+
+/** Tarefas em linhas (abertas e, recolhidas, as concluídas) ou no quadro Kanban. */
+function render_tasks_view(array $list, string $view, string $ret, bool $showClient = true): void
+{
+    $cols = array_fill_keys(array_keys(TASK_STATUS), []);
+    foreach ($list as $t) $cols[$t['status']][] = $t;
+    foreach ($cols as $k => $items) $cols[$k] = task_sort($items);
+    $done = rows_all_done($list);
+    if ($view === 'lista') {
+        $open = array_merge($cols['fazendo'], $cols['revisao'], $cols['a_fazer']);
+        if ($open) render_task_rows($open, $showClient);
+        else echo '<div class="card"><p class="muted">Nenhuma tarefa em aberto.</p></div>';
+        if ($done) { ?><details class="tdone"><summary>Concluídas <em><?= count($done) ?></em></summary><?php render_task_rows($done, $showClient); ?></details><?php }
+        return;
+    }
+    $hidden = max(0, count($done) - 20);
+    $cols['feito'] = array_slice($done, 0, 20); ?>
+    <div class="kanban" id="kanban" data-api="index.php?p=task_api">
+      <?php foreach (TASK_STATUS as $st => $label): ?>
+      <section class="kcol" data-status="<?= $st ?>">
+        <header><h4><?= e($label) ?></h4><em><?= count($st === 'feito' ? $done : $cols[$st]) ?></em></header>
+        <div class="kbody"><?php foreach ($cols[$st] as $t) render_task_card($t, $ret); ?>
+          <?php if ($st === 'feito' && $hidden): ?><p class="muted small">+ <?= $hidden ?> concluída(s) mais antiga(s): veja na Lista.</p><?php endif; ?></div>
+      </section>
+      <?php endforeach; ?>
+    </div>
+    <?= inline_js('assets/js/tasks.js') ?>
+    <?php
 }
 
 function render_task_card(array $t, string $ret): void

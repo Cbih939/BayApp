@@ -183,7 +183,7 @@
   /* ---------- alternância Lista | Calendário (pagamentos) ---------- */
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-sub]'); if (!b) return;
-    const bar = b.closest('.sub-toggle'), root = bar.parentElement;
+    const bar = b.closest('.sub-toggle'), root = bar.closest('[data-subroot]') || bar.parentElement;
     $$('[data-sub]', bar).forEach(x => x.classList.toggle('active', x === b));
     $$(':scope > .sub-pane', root).forEach(p => { p.hidden = p.dataset.pane !== b.dataset.sub; });
   });

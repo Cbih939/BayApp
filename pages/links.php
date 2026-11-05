@@ -3,11 +3,11 @@
 $ft = isset(LINK_TYPES[$_GET['tipo'] ?? '']) ? $_GET['tipo'] : '';
 $ret = url('links', array_filter(['tipo' => $ft]));
 $linksBy = [];
-foreach (rows('SELECT l.*, c.nome AS cliente FROM links l LEFT JOIN clients c ON c.id = l.client_id' . ($ft ? ' WHERE l.tipo = ?' : '') . ' ORDER BY l.tipo, l.titulo', $ft ? [$ft] : []) as $l) $linksBy[(int) $l['client_id']][] = $l;
+foreach (rows('SELECT l.*, c.nome AS cliente FROM links l LEFT JOIN clients c ON c.id = l.client_id WHERE 1 = 1' . client_scope('l.client_id', true) . ($ft ? ' AND l.tipo = ?' : '') . ' ORDER BY l.tipo, l.titulo', $ft ? [$ft] : []) as $l) $linksBy[(int) $l['client_id']][] = $l;
 $tasksBy = [];
-foreach (task_sort(rows(TASK_SELECT . " WHERE t.status <> 'feito'")) as $t) $tasksBy[(int) $t['client_id']][] = $t;
+foreach (task_sort(rows(TASK_SELECT . " WHERE t.status <> 'feito'" . task_scope())) as $t) $tasksBy[(int) $t['client_id']][] = $t;
 $blocks = [];
-foreach (rows('SELECT id, nome FROM clients ORDER BY nome') as $c) {
+foreach (visible_clients() as $c) {
     $l = $linksBy[(int) $c['id']] ?? []; $t = $tasksBy[(int) $c['id']] ?? [];
     if ($l || (!$ft && $t)) $blocks[] = ['id' => (int) $c['id'], 'nome' => $c['nome'], 'links' => $l, 'tasks' => $t];
 }

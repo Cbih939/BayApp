@@ -4,13 +4,23 @@ if ($cronToken === '') { $cronToken = bin2hex(random_bytes(16)); set_setting('cr
 $ret = url('config');
 $wa = setting('wa_provider', 'nenhum');
 $sec = setting('smtp_secure', 'ssl');
-$base = (isset($_SERVER['HTTP_HOST']) ? ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'] : '') . rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? ''), '/\\');
+$base = request_base_url();
 if ($base !== '' && setting('app_url') !== $base) set_setting('app_url', $base);   // o cron usa para montar o link do portal
 $cronPath = dirname(__DIR__) . '/cron.php';
 $cliOn = setting('cli_notify') === '1';
 $cliPrev = $cliOn ? run_client_alerts(true)['clientes'] : 0;
 $log = rows('SELECT * FROM notify_log ORDER BY id DESC LIMIT 60');
 $chk = fn(string $k, string $d = '0') => setting($k, $d) === '1' ? 'checked' : '';
+$rule2fa = setting('require_2fa');
+$no2fa = array_column(rows('SELECT nome FROM users WHERE ativo = 1 AND totp_secret IS NULL ORDER BY nome'), 'nome');
+$backups = backup_list();
+$bkLast = setting('backup_ultimo');
+$bkOld = $bkLast === '' || time() - strtotime($bkLast) > 3 * 86400;
+$secretField = function (string $k): string {
+    $saved = setting($k) !== '';
+    return '<input type="password" name="' . $k . '" autocomplete="new-password" placeholder="' . ($saved ? '•••••••• salvo; vazio mantém' : '') . '">'
+        . ($saved ? '<span class="sec-clear"><input type="checkbox" name="' . $k . '_clear"> remover o valor salvo</span>' : '');
+};
 ?>
 <div class="sec-h big"><div><h3>Configurações</h3><p class="muted">Avisos por e-mail e WhatsApp para a equipe e para os clientes.</p></div></div>
 <form method="post" class="stack"><?= csrf_field() ?>
@@ -21,6 +31,18 @@ $chk = fn(string $k, string $d = '0') => setting($k, $d) === '1' ? 'checked' : '
     <label>Nome da empresa<input name="empresa_nome" value="<?= e(setting('empresa_nome', 'BayApp')) ?>"></label>
     <label>E-mails da equipe que recebem os alertas (separe por vírgula)<input name="alert_emails" value="<?= e(setting('alert_emails')) ?>" placeholder="voce@empresa.com, equipe@empresa.com"></label>
   </div>
+</section>
+
+<section class="card anim-up stack">
+  <div class="cfg-h"><h4><?= icon('shield', 18) ?> Segurança</h4>
+    <span class="chip <?= request_is_https() ? 'tag-ok' : 'tag-over' ?>"><?= request_is_https() ? 'Conexão HTTPS' : 'Sem HTTPS' ?></span></div>
+  <div class="form-grid">
+    <label>Exigir verificação em duas etapas<select name="require_2fa">
+      <?php foreach (['' => 'Opcional', 'admins' => 'Obrigatória para administradores', 'all' => 'Obrigatória para toda a equipe'] as $k => $v): ?><option value="<?= $k ?>" <?= $rule2fa === $k ? 'selected' : '' ?>><?= e($v) ?></option><?php endforeach; ?>
+    </select></label>
+    <div class="field"><label>Ainda sem verificação em duas etapas</label><p class="note"><?= $no2fa ? e(implode(', ', $no2fa)) : 'Toda a equipe ativa já usa.' ?></p></div>
+  </div>
+  <p class="note">Ative a sua em <a class="link" href="<?= url('seguranca') ?>">Minha segurança</a> antes de tornar obrigatória. Quem não tiver ativado será levado para essa tela no próximo acesso.</p>
 </section>
 
 <section class="card anim-up stack">
@@ -53,8 +75,8 @@ $chk = fn(string $k, string $d = '0') => setting($k, $d) === '1' ? 'checked' : '
     <label data-wa="zapi evolution meta"><span data-wa="zapi">ID da instância</span><span data-wa="evolution">Nome da instância</span><span data-wa="meta">ID do número (Phone number ID)</span>
       <input name="wa_instance" value="<?= e(setting('wa_instance')) ?>" autocomplete="off"></label>
     <label data-wa="zapi evolution meta webhook callmebot"><span data-wa="zapi">Token da instância</span><span data-wa="evolution">API key</span><span data-wa="meta">Token de acesso permanente</span><span data-wa="webhook">Token (opcional, enviado como Bearer)</span><span data-wa="callmebot">API key do CallMeBot</span>
-      <input name="wa_apikey" value="<?= e(setting('wa_apikey')) ?>" autocomplete="off"></label>
-    <label data-wa="zapi">Client-Token <small class="muted">(Segurança da conta na Z-API, se ativado)</small><input name="wa_client_token" value="<?= e(setting('wa_client_token')) ?>" autocomplete="off"></label>
+      <?= $secretField('wa_apikey') ?></label>
+    <label data-wa="zapi">Client-Token <small class="muted">(Segurança da conta na Z-API, se ativado)</small><?= $secretField('wa_client_token') ?></label>
     <label data-wa="meta">Modelo de mensagem aprovado <small class="muted">(com uma variável {{1}})</small><input name="wa_meta_template" value="<?= e(setting('wa_meta_template')) ?>" placeholder="aviso_bayapp"></label>
     <label data-wa="meta">Idioma do modelo<input name="wa_meta_lang" value="<?= e(setting('wa_meta_lang', 'pt_BR')) ?>"></label>
   </div>
@@ -77,6 +99,20 @@ $chk = fn(string $k, string $d = '0') => setting($k, $d) === '1' ? 'checked' : '
 </section>
 <div><button class="btn primary" type="submit">Salvar configurações</button></div>
 </form>
+
+<section class="card anim-up" style="margin-top:18px">
+  <div class="cfg-h"><h4><?= icon('folder', 18) ?> Backups</h4>
+    <span class="chip <?= setting('backup_erro') !== '' || $bkOld ? 'tag-over' : 'tag-ok' ?>"><?= $bkLast !== '' ? 'Último: ' . e(date('d/m/Y H:i', strtotime($bkLast))) : 'Nenhum backup ainda' ?></span></div>
+  <p class="muted" style="margin:6px 0 12px">O cron diário salva o banco todo dia e, aos domingos, também os arquivos enviados. Guardamos <?= BACKUP_KEEP_DB ?> backups de banco e <?= BACKUP_KEEP_FULL ?> completos. <b>Eles ficam neste mesmo servidor</b>: baixe uma cópia regularmente e guarde o <code>config.php</code> separado, porque sem a <code>app_key</code> dele as senhas salvas não podem ser lidas.</p>
+  <?php if (setting('backup_erro') !== ''): ?><div class="flash err">Último erro: <?= e(setting('backup_erro')) ?></div><?php endif; ?>
+  <form method="post" style="margin-bottom:12px"><?= csrf_field() ?><input type="hidden" name="action" value="backup_run"><input type="hidden" name="return" value="<?= e($ret) ?>"><button class="btn" type="submit">Gerar backup completo agora</button></form>
+  <?php if ($backups): ?><div class="rep-table cfg-log"><table><thead><tr><th>Quando</th><th>Tipo</th><th>Tamanho</th><th></th></tr></thead><tbody>
+    <?php foreach ($backups as $b): ?><tr>
+      <td class="mono"><?= e(date('d/m/Y H:i', $b['quando'])) ?></td><td><?= $b['completo'] ? 'Completo' : 'Só banco' ?></td><td><?= e(fmt_size($b['tamanho'])) ?></td>
+      <td class="bk-act"><a class="btn sm" href="<?= e(url('backup_download', ['f' => $b['nome']])) ?>">Baixar</a>
+        <form method="post" onsubmit="return confirm('Excluir este backup?')"><?= csrf_field() ?><input type="hidden" name="action" value="backup_delete"><input type="hidden" name="f" value="<?= e($b['nome']) ?>"><input type="hidden" name="return" value="<?= e($ret) ?>"><button class="btn ghost sm" type="submit">Excluir</button></form></td>
+    </tr><?php endforeach; ?></tbody></table></div><?php endif; ?>
+</section>
 
 <section class="card anim-up" style="margin-top:18px"><h4>Testar e executar</h4>
   <p class="muted" style="margin:6px 0 12px">Salve antes de testar. Sem destino, o teste vai para a equipe; com um e-mail ou número, vai só para ele. “Verificar agora” roda a rotina diária (equipe e clientes).</p>

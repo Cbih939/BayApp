@@ -13,10 +13,7 @@ DirectoryIndex index.php
   Header always set Referrer-Policy "same-origin"
 </IfModule>
 
-# Força HTTPS (Hostinger oferece SSL gratuito) — descomente após ativar o SSL
-# RewriteEngine On
-# RewriteCond %{HTTPS} off
-# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+# O redirecionamento para HTTPS é feito pelo app (src/security.php). Para desligar: 'force_https' => false no config.php.
 
 # CSS/JS sempre revalidados (a URL já muda com o conteúdo): evita visual antigo depois de atualizar
 <IfModule mod_headers.c>

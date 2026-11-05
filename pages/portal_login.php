@@ -15,5 +15,6 @@
     <label>Senha<input type="password" name="senha" required autocomplete="current-password"></label>
     <button class="btn primary">Entrar <?= icon('logout', 18) ?></button>
   </form>
+  <p class="muted small"><a class="link" href="portal.php?p=esqueci">Esqueci minha senha</a></p>
   <p class="muted small">Ainda não tem acesso? Peça à equipe da <?= e($empresa) ?>.</p>
 </main></body></html>
