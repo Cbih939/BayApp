@@ -22,6 +22,7 @@ require __DIR__ . '/files.php';
 require __DIR__ . '/payments.php';
 require __DIR__ . '/internal.php';
 require __DIR__ . '/reports.php';
+require __DIR__ . '/workflow.php';
 
 if (PHP_SAPI !== 'cli') web_security($CONFIG);
 if ($CONFIG) ensure_schema();

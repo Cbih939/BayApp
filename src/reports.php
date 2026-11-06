@@ -111,6 +111,35 @@ function report_finance(array $f, array &$r): void
             array_map(fn($o) => [fmt_date($o[1]), INTERNAL_CATS[$o[0]['categoria']] ?? $o[0]['categoria'], $o[0]['descricao'], fmt_money($o[0]['valor']), $o[1] < $today ? 'Em atraso' : 'Pendente'], $iocc), [58, 120, 170, 70, 80]];
     }
 
+    // Resultado: o que entrou (pagamentos de clientes) menos o que saiu (contas pagas da agência). Só para quem gerencia o financeiro.
+    if (can('billing.edit')) {
+        $costSql = 'SELECT p.valor, p.pago_em, b.client_id FROM internal_payments p JOIN internal_bills b ON b.id = p.bill_id WHERE p.pago_em BETWEEN ? AND ?';
+        $costs = rows($costSql . ($cid ? ' AND b.client_id = ?' : '') . ($cid ? '' : client_scope('b.client_id', true)), [$fromT, $toT, ...$bp]);
+        $rec = array_sum(array_map(fn($p) => (float) $p['valor'], $paid));
+        $desp = array_sum(array_map(fn($c) => (float) $c['valor'], $costs));
+        $res = $rec - $desp;
+        $r['kpis'][] = [$cid ? 'Receita do cliente' : 'Receitas recebidas', fmt_money($rec), 'no período'];
+        $r['kpis'][] = [$cid ? 'Custos atribuídos' : 'Despesas pagas', fmt_money($desp), $cid ? 'despesas ligadas a este cliente' : 'contas da agência'];
+        $r['kpis'][] = [$cid ? 'Resultado do cliente' : 'Resultado', fmt_money($res), $rec > 0 ? 'margem de ' . number_format(100 * $res / $rec, 1, ',', '.') . '%' : 'sem receita no período'];
+        $rm = array_fill_keys($months, 0.0);
+        $dm = array_fill_keys($months, 0.0);
+        foreach ($paid as $p) { $m = substr($p['pago_em'], 0, 7); if (isset($rm[$m])) $rm[$m] += (float) $p['valor']; }
+        foreach ($costs as $c) { $m = substr($c['pago_em'], 0, 7); if (isset($dm[$m])) $dm[$m] += (float) $c['valor']; }
+        $labels = array_map('month_short', $months);
+        $r['charts'][] = [$cid ? 'Receita x custos por mês' : 'Receitas x despesas por mês', 'dual', array_combine($labels, array_values($rm)), true, array_combine($labels, array_values($dm))];
+        $r['tables'][] = ['Fluxo de caixa realizado', ['Mês', 'Receitas', 'Despesas', 'Resultado'],
+            array_map(fn($m) => [month_label($m), fmt_money($rm[$m]), fmt_money($dm[$m]), fmt_money($rm[$m] - $dm[$m])], $months), [120, 110, 110, 110]];
+        if (!$cid) {
+            $byCli = [];
+            foreach ($paid as $p) $byCli[$p['cliente']][0] = ($byCli[$p['cliente']][0] ?? 0) + (float) $p['valor'];
+            foreach ($costs as $c) if ($c['client_id'] && ($n = client_name((int) $c['client_id'])) !== '') $byCli[$n][1] = ($byCli[$n][1] ?? 0) + (float) $c['valor'];
+            uasort($byCli, fn($a, $b) => (($b[0] ?? 0) - ($b[1] ?? 0)) <=> (($a[0] ?? 0) - ($a[1] ?? 0)));
+            $r['tables'][] = ['Lucratividade por cliente', ['Cliente', 'Receita', 'Custos atribuídos', 'Resultado', 'Margem'],
+                array_map(fn($n, $v) => [$n, fmt_money($v[0] ?? 0), fmt_money($v[1] ?? 0), fmt_money(($v[0] ?? 0) - ($v[1] ?? 0)),
+                    ($v[0] ?? 0) > 0 ? number_format(100 * (($v[0] ?? 0) - ($v[1] ?? 0)) / $v[0], 1, ',', '.') . '%' : '—'], array_keys($byCli), $byCli), [130, 90, 100, 90, 60]];
+        }
+    }
+
     // Situação por cliente: início do contrato, último mês pago e próximo vencimento
     $sit = [];
     foreach (rows('SELECT id, nome FROM clients WHERE 1 = 1' . ($cid ? ' AND id = ?' : '') . client_scope('id') . ' ORDER BY nome', $bp) as $c) {
@@ -187,8 +216,8 @@ function report_text(array $r): string
 {
     $l = ['📊 *' . $r['titulo'] . '* — ' . setting('empresa_nome', 'BayApp'), 'Período: ' . $r['periodo'], ''];
     foreach ($r['kpis'] as [$k, $v, $s]) $l[] = "• $k: *$v*" . ($s !== '' ? " ($s)" : '');
-    foreach ($r['charts'] as [$t, , $d, $money]) {
-        if (!array_filter($d)) continue;
+    foreach ($r['charts'] as [$t, $kind, $d, $money]) {
+        if ($kind === 'dual' || !array_filter($d)) continue;
         $l[] = '';
         $l[] = "*$t*";
         foreach (array_slice($d, 0, 6, true) as $k => $v) $l[] = "– $k: " . report_num((float) $v, $money);
@@ -216,6 +245,35 @@ function chart_bar_svg(array $data, bool $money): string
             . ($w ? '<rect x="150" y="' . ($y + 6) . '" width="' . $w . '" height="16" rx="5" fill="' . REPORT_COLORS[0] . '"/>' : '')
             . '<text x="' . (156 + $w) . '" y="' . ($y + 19) . '" class="rep-t rep-v">' . e(report_num((float) $v, $money)) . '</text>';
         $y += 30;
+    }
+    return $o . '</svg>';
+}
+
+/** Duas séries por mês lado a lado (ex.: receitas e despesas), com legenda. */
+function chart_dual_svg(array $a, array $b, bool $money, array $names = ['Receitas', 'Despesas']): string
+{
+    if (!array_filter($a) && !array_filter($b)) return chart_empty();
+    $n = count($a);
+    $max = max(1, max($a), max($b));
+    [$x0, $x1, $base, $top] = [8, 512, 150, 26];
+    $slot = ($x1 - $x0) / $n;
+    $bw = (int) min(20, max(4, $slot * 0.3));
+    $cols = ['#8b5cf6', '#ec4899'];
+    $o = '<svg class="rep-svg" viewBox="0 0 520 176" role="img">'
+        . '<rect x="8" y="4" width="10" height="10" rx="3" fill="' . $cols[0] . '"/><text x="23" y="13" class="rep-t rep-s">' . e($names[0]) . '</text>'
+        . '<rect x="98" y="4" width="10" height="10" rx="3" fill="' . $cols[1] . '"/><text x="113" y="13" class="rep-t rep-s">' . e($names[1]) . '</text>'
+        . '<line x1="' . $x0 . '" x2="' . $x1 . '" y1="' . $base . '" y2="' . $base . '" class="rep-axis"/>';
+    $i = 0;
+    foreach ($a as $k => $va) {
+        $vb = $b[$k] ?? 0;
+        $cx = $x0 + $slot * $i + $slot / 2;
+        foreach ([[$va, $cx - $bw - 1, 0], [$vb, $cx + 1, 1]] as [$v, $x, $ci]) {
+            $h = $v > 0 ? max(3, (int) round(($base - $top) * $v / $max)) : 0;
+            if ($h) $o .= '<rect class="rep-col" x="' . (int) $x . '" y="' . ($base - $h) . '" width="' . $bw . '" height="' . $h . '" rx="3" fill="' . $cols[$ci] . '"><title>' . e($k) . ' · ' . e($names[$ci]) . ': ' . e(report_num((float) $v, $money)) . '</title></rect>';
+        }
+        $lab = ($n > 6 && preg_match('~^(\d\d)/\d\d(\d\d)$~', (string) $k, $mm)) ? $mm[1] . '/' . $mm[2] : (string) $k;
+        if ($n <= 12 || $i % 2 === 0) $o .= '<text x="' . (int) $cx . '" y="168" text-anchor="middle" class="rep-t rep-v rep-s">' . e($lab) . '</text>';
+        $i++;
     }
     return $o . '</svg>';
 }
@@ -259,7 +317,8 @@ function report_csv(array $r): string
     $o = "\xEF\xBB\xBF" . $line([$r['titulo']]) . $line(['Período', $r['periodo']]) . $line(['Gerado em', $r['gerado']]) . "\r\n";
     $o .= $line(['Indicadores']) . $line(['Indicador', 'Valor', 'Detalhe']);
     foreach ($r['kpis'] as $k) $o .= $line($k);
-    foreach ($r['charts'] as [$t, , $d, $money]) {
+    foreach ($r['charts'] as [$t, $kind, $d, $money]) {
+        if ($kind === 'dual') continue;
         $o .= "\r\n" . $line([$t]);
         foreach ($d as $k => $v) $o .= $line([$k, $money ? number_format((float) $v, 2, ',', '') : (string) (int) $v]);
     }
@@ -399,7 +458,8 @@ function report_pdf(array $r): string
     }
 
     // Gráficos de barras (rosca vira barras no PDF)
-    foreach ($r['charts'] as [$t, , $d, $money]) {
+    foreach ($r['charts'] as [$t, $kind, $d, $money]) {
+        if ($kind === 'dual') continue;
         $d = array_slice(array_filter($d), 0, 8, true);
         $p->ensure(40 + 18 * max(1, count($d)));
         $p->text($M, $p->y - 8, $t, 11, true);

@@ -21,8 +21,11 @@ function cal_posts(string $from, string $to, ?int $client, array $f): array
     if ($f['canal']) { $sql .= ' AND p.canal = ?'; $par[] = $f['canal']; }
     if ($f['pst']) { $sql .= ' AND p.status = ?'; $par[] = $f['pst']; }
     $out = [];
-    foreach (rows($sql . " ORDER BY p.dia, COALESCE(p.hora, '99:99'), p.id", $par) as $p) {
-        $out[] = $p + ['canal_label' => POST_CHANNELS[$p['canal']][0] ?? $p['canal'], 'sigla' => POST_CHANNELS[$p['canal']][1] ?? '··',
+    $list = rows($sql . " ORDER BY p.dia, COALESCE(p.hora, '99:99'), p.id", $par);
+    $ev = post_events_for(array_column($list, 'id'));
+    foreach ($list as $p) {
+        $hist = $ev[(int) $p['id']] ?? [];
+        $out[] = $p + ['eventos' => $hist, 'aprovado' => !approval_required() || (bool) array_filter($hist, fn($h) => $h['tipo'] === 'aprovado' && (int) $h['versao'] === (int) $p['versao']),'canal_label' => POST_CHANNELS[$p['canal']][0] ?? $p['canal'], 'sigla' => POST_CHANNELS[$p['canal']][1] ?? '··',
             'formato_label' => POST_FORMATS[$p['formato']] ?? $p['formato'], 'status_label' => POST_STATUS[$p['status']] ?? $p['status'],
             'dia_fmt' => fmt_date($p['dia'])];
     }
@@ -166,6 +169,10 @@ function calendar_dialogs(?int $client, string $ret): void
         <?php if (can('delete')): ?><form method="post" id="pv-del" data-confirm="Excluir este post do calendário?"><?= csrf_field() ?><input type="hidden" name="action" value="post_delete"><input type="hidden" name="id" value=""><input type="hidden" name="return" value="<?= e($ret) ?>">
           <button class="pv-link danger"><?= icon('trash', 16) ?> Excluir post</button></form><?php endif; ?>
       </div>
+      <form method="post" id="pv-ext" class="pv-ext" hidden><?= csrf_field() ?><input type="hidden" name="action" value="post_approve_manual"><input type="hidden" name="id" value=""><input type="hidden" name="return" value="<?= e($ret) ?>">
+        <h4>Aprovado fora do app?</h4>
+        <input name="comentario" maxlength="300" required placeholder="Ex.: aprovado pelo WhatsApp por Ana">
+        <button class="btn sm full"><?= icon('check', 15) ?> Registrar aprovação</button></form>
       <form method="post" id="pv-pub"><?= csrf_field() ?><input type="hidden" name="action" value="post_status"><input type="hidden" name="id" value=""><input type="hidden" name="status" value="concluido"><input type="hidden" name="return" value="<?= e($ret) ?>">
         <button class="btn primary full"><?= icon('check', 16) ?> Marcar como concluído</button></form>
       <?php endif; ?>

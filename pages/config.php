@@ -42,6 +42,7 @@ $secretField = function (string $k): string {
     </select></label>
     <div class="field"><label>Ainda sem verificação em duas etapas</label><p class="note"><?= $no2fa ? e(implode(', ', $no2fa)) : 'Toda a equipe ativa já usa.' ?></p></div>
   </div>
+  <label class="switch"><input type="checkbox" name="aprovacao_cliente" <?= setting('aprovacao_cliente', '1') === '1' ? 'checked' : '' ?>><span></span> Exigir a aprovação do cliente antes de agendar ou publicar um conteúdo</label>
   <p class="note">Ative a sua em <a class="link" href="<?= url('seguranca') ?>">Minha segurança</a> antes de tornar obrigatória. Quem não tiver ativado será levado para essa tela no próximo acesso.</p>
 </section>
 

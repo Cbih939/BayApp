@@ -69,6 +69,16 @@ $ret = $R($tab);
         <p class="muted small" style="margin-top:0">Pacote <b><?= e($contract['plano']) ?></b> · uso em <?= e(MONTHS_PT[(int) substr($ym, 5, 2)]) ?> (contado pelo calendário de postagem)</p>
         <?php render_usage($usage); ?>
       <?php else: echo '<p class="muted">' . ($contract ? 'O contrato não tem pacote vinculado.' : 'Vincule um pacote ao contrato para ver as entregas do mês.') . '</p>'; endif; ?>
+      <?php if ($usage && can('posts.edit')): $nextYm = date('Y-m', strtotime('first day of next month'));
+        $cyc = array_column(rows('SELECT competencia, gerados FROM contract_cycles WHERE contract_id = ? ORDER BY competencia DESC LIMIT 3', [$contract['id']]), 'gerados', 'competencia'); ?>
+        <div class="deliv">
+          <p class="muted small">As entregas do pacote entram no calendário em rascunho, uma por item, e o cron abre o mês seguinte sozinho no dia 1.<?= isset($cyc[$ym]) ? ' Este mês já foi aberto.' : '' ?></p>
+          <div class="row-btns"><?php foreach ([$ym, $nextYm] as $m): ?>
+            <form method="post"><?= csrf_field() ?><input type="hidden" name="action" value="deliveries_generate"><input type="hidden" name="client_id" value="<?= $id ?>"><input type="hidden" name="m" value="<?= $m ?>"><input type="hidden" name="return" value="<?= e($ret) ?>">
+              <button class="btn sm<?= $m === $ym ? ' primary' : '' ?>"><?= icon('cal', 15) ?> Gerar entregas de <?= e(month_label($m)) ?></button></form><?php endforeach; ?></div>
+          <?php if ($extra = plan_extras($id, $ym)): ?><p class="note warn">Além do pacote neste mês: <?= e(implode(', ', $extra)) ?>. Pode ser uma demanda extra para orçar.</p><?php endif; ?>
+        </div>
+      <?php endif; ?>
       <?php if (can('clients.edit')): ?><p class="small"><a class="link" href="<?= url('pacotes') ?>">Gerenciar os pacotes da agência →</a></p><?php endif; ?>
     </div>
   </div>

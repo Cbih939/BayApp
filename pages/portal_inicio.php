@@ -8,6 +8,7 @@ $boletos = count(array_filter($open, fn($e) => array_filter($e['arquivos'], fn($
 <section class="hero anim-up"><div><p class="eyebrow"><?= e($me['empresa'] ?: $me['cliente']) ?></p>
   <h1>Olá, <?= e(explode(' ', $me['nome'])[0]) ?> 👋</h1>
   <p class="muted"><?= $over ? "<b class='warn'>$over pagamento(s) em atraso.</b> Fale com a nossa equipe." : (count($soon) ? 'Você tem ' . count($soon) . ' pagamento(s) nos próximos 30 dias.' : 'Tudo em dia com a sua conta.') ?></p></div></section>
+<?php if ($nAppr): ?><a class="card appr-call" href="portal.php?p=aprovacoes"><span class="stat-ico"><?= icon('check', 20) ?></span><div><b><?= $nAppr ?> conteúdo(s) aguardando sua aprovação</b><small class="muted">Veja e aprove ou peça ajustes.</small></div><span class="link">Ver agora →</span></a><?php endif; ?>
 <section class="grid stats">
   <?php foreach ([['A pagar em 30 dias', count($soon), 'calendar'], ['Em atraso', $over, 'bell'], ['Boletos disponíveis', $boletos, 'clip'], ['Pastas e links', count($links), 'folder']] as $i => [$l, $v, $ic]): ?>
     <div class="card stat tilt anim-up <?= $l === 'Em atraso' && $v ? 'alert' : '' ?>" style="--i:<?= $i ?>"><span class="stat-ico"><?= icon($ic, 22) ?></span><b class="count" data-to="<?= $v ?>">0</b><small><?= e($l) ?></small></div>

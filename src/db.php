@@ -180,6 +180,7 @@ function schema_sql(string $driver): array
         "CREATE TABLE IF NOT EXISTS posts (
             id $pk, client_id INT NOT NULL, dia VARCHAR(10) NOT NULL, hora VARCHAR(5) NULL, canal VARCHAR(12) NOT NULL,
             formato VARCHAR(12) NOT NULL DEFAULT 'post', titulo VARCHAR(200) NULL, legenda TEXT NULL, midia_url VARCHAR(700) NULL, imagem VARCHAR(60) NULL, imagem_nome VARCHAR(255) NULL,
+            versao INT NOT NULL DEFAULT 1, origem VARCHAR(10) NULL,
             status VARCHAR(10) NOT NULL DEFAULT 'rascunho', publicado_em VARCHAR(19) NULL, criado_por INT NULL,
             criado_em VARCHAR(19) NOT NULL, atualizado_em VARCHAR(19) NOT NULL,
             FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE){$eng}",
@@ -192,7 +193,7 @@ function schema_sql(string $driver): array
             id $pk, categoria VARCHAR(20) NOT NULL DEFAULT 'outro', descricao VARCHAR(200) NOT NULL, fornecedor VARCHAR(120) NULL,
             valor DECIMAL(12,2) NULL, vencimento VARCHAR(10) NOT NULL, recorrencia VARCHAR(10) NOT NULL DEFAULT 'nenhuma',
             status VARCHAR(10) NOT NULL DEFAULT 'pendente', pago_em VARCHAR(19) NULL, avisar_email INT NOT NULL DEFAULT 1,
-            avisar_whatsapp INT NOT NULL DEFAULT 1, notas TEXT NULL, criado_em VARCHAR(19) NOT NULL){$eng}",
+            avisar_whatsapp INT NOT NULL DEFAULT 1, notas TEXT NULL, client_id INT NULL, criado_em VARCHAR(19) NOT NULL){$eng}",
         "CREATE TABLE IF NOT EXISTS internal_payments (
             id $pk, bill_id INT NOT NULL, competencia VARCHAR(7) NOT NULL, vencimento VARCHAR(10) NULL, valor DECIMAL(12,2) NULL,
             pago_em VARCHAR(19) NOT NULL, user_id INT NULL,
@@ -217,6 +218,13 @@ function schema_sql(string $driver): array
         "CREATE TABLE IF NOT EXISTS password_resets (
             id $pk, kind VARCHAR(8) NOT NULL, account_id INT NOT NULL, token_hash CHAR(64) NOT NULL,
             expira_em VARCHAR(19) NOT NULL, usado_em VARCHAR(19) NULL, criado_em VARCHAR(19) NOT NULL){$eng}",
+        "CREATE TABLE IF NOT EXISTS post_events (
+            id $pk, post_id INT NOT NULL, versao INT NOT NULL DEFAULT 1, tipo VARCHAR(16) NOT NULL, detalhe TEXT NULL,
+            autor VARCHAR(120) NOT NULL, autor_tipo VARCHAR(8) NOT NULL, criado_em VARCHAR(19) NOT NULL,
+            FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE){$eng}",
+        "CREATE TABLE IF NOT EXISTS contract_cycles (
+            id $pk, contract_id INT NOT NULL, competencia VARCHAR(7) NOT NULL, gerados INT NOT NULL DEFAULT 0, criado_em VARCHAR(19) NOT NULL,
+            FOREIGN KEY (contract_id) REFERENCES contracts(id) ON DELETE CASCADE){$eng}",
         'CREATE INDEX idx_cred_client ON credentials(client_id)',
         'CREATE INDEX idx_bill_venc ON billings(vencimento)',
         'CREATE INDEX idx_bill_client ON billings(client_id)',
@@ -243,11 +251,14 @@ function schema_sql(string $driver): array
         'CREATE INDEX idx_reset_token ON password_resets(token_hash)',
         'CREATE INDEX idx_reset_account ON password_resets(kind, account_id)',
         'CREATE INDEX idx_login_email ON login_attempts(email)',
+        'CREATE INDEX idx_pevent_post ON post_events(post_id, versao)',
+        'CREATE UNIQUE INDEX idx_cycle ON contract_cycles(contract_id, competencia)',
+        'CREATE INDEX idx_ibill_client ON internal_bills(client_id)',
     ];
     return $t;
 }
 
-const SCHEMA_VERSION = '11';
+const SCHEMA_VERSION = '12';
 
 /** Atualiza instalações antigas (cria tabelas novas) uma única vez. */
 function ensure_schema(): void
@@ -259,7 +270,18 @@ function ensure_schema(): void
     if ($v < 7) backfill_payment_dates();
     if ($v < 8) migrate_post_status();
     if ($v < 11) migrate_encrypt_tokens();
+    if ($v < 12) migrate_post_approvals();
     set_setting('schema_v', SCHEMA_VERSION);
+}
+
+/** Posts já agendados ou publicados antes da aprovação existir contam como aprovados, para não travar o calendário. */
+function migrate_post_approvals(): void
+{
+    $in = implode(',', array_map(fn($s) => "'$s'", POST_APPROVED));
+    foreach (rows("SELECT id FROM posts WHERE status IN ($in)") as $p) {
+        insert('post_events', ['post_id' => $p['id'], 'versao' => 1, 'tipo' => 'aprovado', 'detalhe' => 'Aprovado antes do registro de aprovações',
+            'autor' => 'Sistema', 'autor_tipo' => 'sistema', 'criado_em' => now()]);
+    }
 }
 
 /** Tokens do WhatsApp salvos antes da versão 11 estavam em texto puro. */
@@ -280,7 +302,9 @@ function create_schema(PDO $pdo, string $driver): void
         // quem já existe mantém o acesso a todos os clientes até o administrador restringir
         'ALTER TABLE users ADD COLUMN acesso_todos INT NOT NULL DEFAULT 1', 'ALTER TABLE users ADD COLUMN sess_ver INT NOT NULL DEFAULT 1',
         'ALTER TABLE users ADD COLUMN totp_secret TEXT NULL', 'ALTER TABLE users ADD COLUMN totp_last BIGINT NOT NULL DEFAULT 0', 'ALTER TABLE users ADD COLUMN totp_recovery TEXT NULL',
-        'ALTER TABLE client_users ADD COLUMN sess_ver INT NOT NULL DEFAULT 1'] as $alter) {
+        'ALTER TABLE client_users ADD COLUMN sess_ver INT NOT NULL DEFAULT 1',
+        'ALTER TABLE posts ADD COLUMN versao INT NOT NULL DEFAULT 1', 'ALTER TABLE posts ADD COLUMN origem VARCHAR(10) NULL',
+        'ALTER TABLE internal_bills ADD COLUMN client_id INT NULL'] as $alter) {
         try { $pdo->exec($alter); } catch (PDOException $e) {}
     }
 

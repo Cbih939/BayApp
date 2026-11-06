@@ -5,6 +5,23 @@ Aplicativo em **PHP 8 + MySQL** (preto, branco e roxo) para agências: cadastro 
 ## Navegação
 O menu lateral tem só **Início, Clientes, Senhas, Equipe, Guia e Configurações**. Tudo o que é de um cliente fica nas abas da página dele (Pacote, Tarefas, Calendário, Pagamentos, Relatórios, Mensagens, Pastas & Links, Senhas e Portal). As visões de todos os clientes, o catálogo de pacotes e os vencimentos da própria empresa abrem pela faixa "Todos os clientes" no Início.
 
+## Fluxo integrado (contrato → entregas → aprovação → resultado)
+- **Entregas do pacote:** ao cadastrar um contrato em vigor com pacote, as entregas do mês (posts, carrosséis, reels, stories, vídeos) entram no calendário em rascunho, distribuídas nos dias úteis. O cron abre o mês seguinte sozinho no dia 1, uma única vez por contrato; contratos encerrados não geram ciclos. Na aba **Pacote** há botões para gerar o mês atual e o próximo, e o app avisa quando o mês passa do que o pacote prevê (demanda extra para orçar).
+- **Aprovação do cliente:** mudar o post para "Aprovação do cliente" avisa o cliente por e-mail. No portal, a aba **Aprovações** mostra a arte e a legenda para aprovar ou pedir ajustes (com comentário). Sem aprovação da versão atual, o post não vai para "Aguardando agendamento", "Agendado" nem "Concluído". Se a aprovação veio por outro canal, a equipe registra no modal do post explicando como.
+- **Versões:** mudar título, legenda ou arte cria uma nova versão; se o post já estava aprovado, ele volta para a aprovação do cliente. Mudar só data, horário ou canal não pede nova aprovação. A regra pode ser desligada em *Configurações → Segurança*.
+- **Histórico:** cada post guarda quem gerou, editou, enviou, aprovou ou pediu ajustes, e em qual versão (aba Histórico do modal).
+- **Resultado e lucratividade:** em *Relatórios → Financeiro* (para quem gerencia o financeiro): receitas recebidas, despesas pagas, resultado, margem, gráfico de receitas x despesas por mês, fluxo de caixa e lucratividade por cliente. As contas da empresa podem ser atribuídas a um cliente ("Custo de qual cliente?") para entrar no custo dele.
+
+## Roteiro (próximas fases)
+Este app continua em PHP + MySQL, que rodam na hospedagem compartilhada da Hostinger. Next.js, NestJS e PostgreSQL exigiriam um servidor próprio (VPS) e a reescrita do sistema inteiro, então ficam para quando a venda como SaaS for decidida. Em ordem de prioridade, ainda faltam:
+1. **Serviços e simulador de pacotes:** preço, custo interno, prazo e revisões por serviço; valor do pacote com desconto e margem estimada.
+2. **CRM comercial:** leads, funil, propostas e conversão da proposta aprovada em cliente e contrato.
+3. **Produção:** projetos com etapas, horas trabalhadas, tarefas recorrentes, contagem de revisões e mais de uma função por usuário (ex.: administrador e comercial).
+4. **Cadastro completo do cliente:** razão social, endereço, segmento e status de prospect, suspenso ou encerrado.
+5. **Portal de solicitações:** briefing enviado pelo cliente e acompanhamento do atendimento.
+6. **Integrações:** cobrança por Pix e boleto, Google Drive e Agenda, publicação e métricas pelas APIs oficiais das redes.
+7. **PWA, inteligência artificial e estrutura multiagência (SaaS).**
+
 ## Funcionalidades
 | Módulo | O que faz |
 |---|---|

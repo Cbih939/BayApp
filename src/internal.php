@@ -9,10 +9,18 @@ function record_internal_payment(array $b, ?int $uid): void
         'valor' => $b['valor'], 'pago_em' => now(), 'user_id' => $uid]);
 }
 
+function client_name(int $id): string
+{
+    static $names = null;
+    $names ??= array_column(rows('SELECT id, nome FROM clients'), 'nome', 'id');
+    return (string) ($names[$id] ?? '');
+}
+
 function render_ibill_card(array $b, string $ret): void
 {
     [$cls, $label, $d] = bill_urgency($b);
-    $item = array_intersect_key($b, array_flip(['id', 'categoria', 'descricao', 'fornecedor', 'valor', 'vencimento', 'recorrencia', 'avisar_email', 'avisar_whatsapp', 'notas']));
+    $item = array_intersect_key($b, array_flip(['id', 'categoria', 'descricao', 'fornecedor', 'valor', 'vencimento', 'recorrencia', 'avisar_email', 'avisar_whatsapp', 'notas', 'client_id']));
+    $cliente = $b['client_id'] ? client_name((int) $b['client_id']) : '';
     $canEdit = can('billing.edit');
     ?>
     <article class="card bill <?= $cls ?> tilt" data-item="<?= e(json_encode($item, JSON_UNESCAPED_UNICODE)) ?>">
@@ -20,7 +28,7 @@ function render_ibill_card(array $b, string $ret): void
       <div class="bill-main">
         <h4><?= e($b['descricao']) ?></h4>
         <p class="muted"><?= e(INTERNAL_CATS[$b['categoria']] ?? $b['categoria']) ?><?= $b['fornecedor'] ? ' · ' . e($b['fornecedor']) : '' ?></p>
-        <div class="chips"><span class="chip"><?= icon('calendar', 14) ?> <?= fmt_date($b['vencimento']) ?></span>
+        <div class="chips"><?php if ($cliente): ?><span class="chip tag-d30" title="Custo atribuído ao cliente"><?= icon('briefcase', 13) ?> <?= e($cliente) ?></span><?php endif; ?><span class="chip"><?= icon('calendar', 14) ?> <?= fmt_date($b['vencimento']) ?></span>
           <span class="chip"><?= fmt_money($b['valor']) ?></span>
           <?php if ($b['recorrencia'] !== 'nenhuma'): ?><span class="chip">↻ <?= e(REC_LABELS[$b['recorrencia']] ?? $b['recorrencia']) ?></span><?php endif; ?>
           <span class="chip tag-<?= $cls ?>"><?= e($label) ?></span>
@@ -65,7 +73,8 @@ function dlg_ibill(string $ret): void
   <div class="grid3" style="grid-template-columns:1fr 1fr 1.35fr"><label>Vencimento<input type="date" name="vencimento" required></label>
     <label>Valor (R$)<input name="valor" inputmode="decimal" placeholder="0,00"></label>
     <label>Cobrança<select name="recorrencia"><?php foreach (REC_LABELS as $k => $v): ?><option value="<?= $k ?>"><?= e($v) ?></option><?php endforeach; ?></select></label></div>
-  <label>Fornecedor<input name="fornecedor" placeholder="Hostinger, Registro.br, Meta…"></label>
+  <div class="grid2"><label>Fornecedor<input name="fornecedor" placeholder="Hostinger, Registro.br, Meta…"></label>
+    <label>Custo de qual cliente? <small class="muted">(para a lucratividade)</small><select name="client_id"><option value="">— Despesa geral da agência —</option><?php foreach (visible_clients() as $c): ?><option value="<?= (int) $c['id'] ?>"><?= e($c['nome']) ?></option><?php endforeach; ?></select></label></div>
   <div class="field"><label>Avisar nos marcos de 30, 15 e 7 dias por</label>
     <div class="switches"><label class="switch"><input type="checkbox" name="avisar_email" checked><span></span> <?= icon('mail', 16) ?> E-mail</label>
     <label class="switch"><input type="checkbox" name="avisar_whatsapp" checked><span></span> <?= icon('phone', 16) ?> WhatsApp</label></div></div>
