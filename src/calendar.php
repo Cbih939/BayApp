@@ -17,6 +17,7 @@ function cal_posts(string $from, string $to, ?int $client, array $f): array
             WHERE p.dia >= ? AND p.dia <= ?';
     $par = [$from, $to];
     if ($client) { $sql .= ' AND p.client_id = ?'; $par[] = $client; }
+    $sql .= client_scope('p.client_id');
     if ($f['canal']) { $sql .= ' AND p.canal = ?'; $par[] = $f['canal']; }
     if ($f['pst']) { $sql .= ' AND p.status = ?'; $par[] = $f['pst']; }
     $out = [];
@@ -61,7 +62,7 @@ function render_calendar(?int $client, array $pairs): string
     $nDone = count(array_filter($inMonth, fn($p) => $p['status'] === 'concluido'));
     // faixa do fluxo de conteúdo: contagem do mês por status (respeita cliente e canal; ignora o filtro de status)
     $cnt = array_fill_keys(array_keys(POST_STATUS), 0);
-    foreach (rows('SELECT status, COUNT(*) n FROM posts WHERE dia >= ? AND dia <= ?' . ($client ? ' AND client_id = ?' : '') . ($f['canal'] ? ' AND canal = ?' : '') . ' GROUP BY status',
+    foreach (rows('SELECT status, COUNT(*) n FROM posts WHERE dia >= ? AND dia <= ?' . ($client ? ' AND client_id = ?' : '') . client_scope('client_id') . ($f['canal'] ? ' AND canal = ?' : '') . ' GROUP BY status',
         array_values(array_filter([$first, date('Y-m-t', strtotime($first)), $client ?: null, $f['canal'] ?: null], fn($v) => $v !== null))) as $r) {
         $cnt[$r['status']] = (int) $r['n'];
     }
@@ -224,6 +225,7 @@ function calendar_pdf(string $month, ?int $client, string $canal): ?string
     $sql = "SELECT p.*, c.nome AS cliente FROM posts p JOIN clients c ON c.id = p.client_id WHERE p.dia >= ? AND p.dia <= ? AND p.status IN ($in)";
     $par = array_merge([$first, $last], POST_READY);
     if ($client) { $sql .= ' AND p.client_id = ?'; $par[] = $client; }
+    $sql .= client_scope('p.client_id');
     if ($canal !== '') { $sql .= ' AND p.canal = ?'; $par[] = $canal; }
     $posts = rows($sql . " ORDER BY p.dia, COALESCE(p.hora, '99:99'), p.id", $par);
     if (!$posts) return null;

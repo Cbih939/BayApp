@@ -103,6 +103,7 @@ function serve_file(array $f): never
     header('Content-Length: ' . filesize($path));
     header('Content-Disposition: ' . ($inline ? 'inline' : 'attachment') . '; filename="' . $safe . '"');
     header('X-Content-Type-Options: nosniff');
+    header_remove('Content-Security-Policy');   // o leitor de PDF do navegador não abre com a política das páginas
     header('Cache-Control: private, max-age=0, no-store');
     readfile($path);
     exit;

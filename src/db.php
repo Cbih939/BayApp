@@ -46,6 +46,12 @@ function insert(string $table, array $data): int
     return (int) db()->lastInsertId();
 }
 
+/** Libera um cliente para um usuário da equipe (a tabela não tem coluna id). */
+function insert_user_client(int $userId, int $clientId): void
+{
+    q('INSERT INTO user_clients (user_id, client_id) VALUES (?, ?)', [$userId, $clientId]);
+}
+
 function update(string $table, int $id, array $data): void
 {
     $set = implode(',', array_map(fn($c) => "$c = ?", array_keys($data)));
@@ -102,7 +108,8 @@ function schema_sql(string $driver): array
         "CREATE TABLE IF NOT EXISTS users (
             id $pk, nome VARCHAR(120) NOT NULL, email VARCHAR(190) NOT NULL UNIQUE,
             senha_hash VARCHAR(255) NOT NULL, papel VARCHAR(20) NOT NULL DEFAULT 'designer',
-            telefone VARCHAR(40) NULL, ativo INT NOT NULL DEFAULT 1,
+            telefone VARCHAR(40) NULL, ativo INT NOT NULL DEFAULT 1, acesso_todos INT NOT NULL DEFAULT 1, sess_ver INT NOT NULL DEFAULT 1,
+            totp_secret TEXT NULL, totp_last BIGINT NOT NULL DEFAULT 0, totp_recovery TEXT NULL,
             ultimo_login VARCHAR(19) NULL, criado_em VARCHAR(19) NOT NULL){$eng}",
         "CREATE TABLE IF NOT EXISTS clients (
             id $pk, nome VARCHAR(160) NOT NULL, empresa VARCHAR(160) NULL, email VARCHAR(190) NULL,
@@ -138,7 +145,7 @@ function schema_sql(string $driver): array
             id $pk, ip VARCHAR(45) NOT NULL, email VARCHAR(190) NULL, criado_em VARCHAR(19) NOT NULL){$eng}",
         "CREATE TABLE IF NOT EXISTS client_users (
             id $pk, client_id INT NOT NULL, nome VARCHAR(120) NOT NULL, email VARCHAR(190) NOT NULL UNIQUE,
-            senha_hash VARCHAR(255) NOT NULL, ativo INT NOT NULL DEFAULT 1,
+            senha_hash VARCHAR(255) NOT NULL, ativo INT NOT NULL DEFAULT 1, sess_ver INT NOT NULL DEFAULT 1,
             ultimo_login VARCHAR(19) NULL, criado_em VARCHAR(19) NOT NULL,
             FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE){$eng}",
         "CREATE TABLE IF NOT EXISTS messages (
@@ -203,6 +210,13 @@ function schema_sql(string $driver): array
         "CREATE TABLE IF NOT EXISTS notify_log (
             id $pk, canal VARCHAR(12) NOT NULL, destino VARCHAR(250) NOT NULL, assunto VARCHAR(200) NULL,
             status VARCHAR(8) NOT NULL, detalhe VARCHAR(250) NULL, criado_em VARCHAR(19) NOT NULL){$eng}",
+        "CREATE TABLE IF NOT EXISTS user_clients (
+            user_id INT NOT NULL, client_id INT NOT NULL, PRIMARY KEY (user_id, client_id),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE){$eng}",
+        "CREATE TABLE IF NOT EXISTS password_resets (
+            id $pk, kind VARCHAR(8) NOT NULL, account_id INT NOT NULL, token_hash CHAR(64) NOT NULL,
+            expira_em VARCHAR(19) NOT NULL, usado_em VARCHAR(19) NULL, criado_em VARCHAR(19) NOT NULL){$eng}",
         'CREATE INDEX idx_cred_client ON credentials(client_id)',
         'CREATE INDEX idx_bill_venc ON billings(vencimento)',
         'CREATE INDEX idx_bill_client ON billings(client_id)',
@@ -225,11 +239,15 @@ function schema_sql(string $driver): array
         'CREATE INDEX idx_pay_client ON payments(client_id, competencia)',
         'CREATE INDEX idx_pay_bill ON payments(billing_id)',
         'CREATE INDEX idx_notify_when ON notify_log(criado_em)',
+        'CREATE INDEX idx_uclient_client ON user_clients(client_id)',
+        'CREATE INDEX idx_reset_token ON password_resets(token_hash)',
+        'CREATE INDEX idx_reset_account ON password_resets(kind, account_id)',
+        'CREATE INDEX idx_login_email ON login_attempts(email)',
     ];
     return $t;
 }
 
-const SCHEMA_VERSION = '10';
+const SCHEMA_VERSION = '11';
 
 /** Atualiza instalações antigas (cria tabelas novas) uma única vez. */
 function ensure_schema(): void
@@ -240,7 +258,16 @@ function ensure_schema(): void
     if ($v < 6) backfill_payments();
     if ($v < 7) backfill_payment_dates();
     if ($v < 8) migrate_post_status();
+    if ($v < 11) migrate_encrypt_tokens();
     set_setting('schema_v', SCHEMA_VERSION);
+}
+
+/** Tokens do WhatsApp salvos antes da versão 11 estavam em texto puro. */
+function migrate_encrypt_tokens(): void
+{
+    foreach (SECRET_SETTINGS as $k) {
+        if (setting($k) !== '') set_setting($k, encrypt_secret(setting($k)));
+    }
 }
 
 function create_schema(PDO $pdo, string $driver): void
@@ -249,7 +276,11 @@ function create_schema(PDO $pdo, string $driver): void
     foreach (['ALTER TABLE tasks ADD COLUMN link VARCHAR(700) NULL', 'ALTER TABLE billings ADD COLUMN modelo VARCHAR(10) NULL',
         'ALTER TABLE payments ADD COLUMN vencimento VARCHAR(10) NULL',
         'ALTER TABLE posts ADD COLUMN imagem VARCHAR(60) NULL', 'ALTER TABLE posts ADD COLUMN imagem_nome VARCHAR(255) NULL',
-        'ALTER TABLE billings ADD COLUMN avisar_cliente INT NOT NULL DEFAULT 1'] as $alter) {
+        'ALTER TABLE billings ADD COLUMN avisar_cliente INT NOT NULL DEFAULT 1',
+        // quem já existe mantém o acesso a todos os clientes até o administrador restringir
+        'ALTER TABLE users ADD COLUMN acesso_todos INT NOT NULL DEFAULT 1', 'ALTER TABLE users ADD COLUMN sess_ver INT NOT NULL DEFAULT 1',
+        'ALTER TABLE users ADD COLUMN totp_secret TEXT NULL', 'ALTER TABLE users ADD COLUMN totp_last BIGINT NOT NULL DEFAULT 0', 'ALTER TABLE users ADD COLUMN totp_recovery TEXT NULL',
+        'ALTER TABLE client_users ADD COLUMN sess_ver INT NOT NULL DEFAULT 1'] as $alter) {
         try { $pdo->exec($alter); } catch (PDOException $e) {}
     }
 

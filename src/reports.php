@@ -24,7 +24,8 @@ function report_filters(array $src): array
         };
         if (!isset(REPORT_PRESETS[$preset])) $preset = 'mes';
     }
-    return ['kind' => $kind, 'from' => $from, 'to' => $to, 'client' => (int) ($src['cliente'] ?? 0), 'preset' => $preset];
+    $client = (int) ($src['cliente'] ?? 0);
+    return ['kind' => $kind, 'from' => $from, 'to' => $to, 'client' => client_allowed($client) ? $client : 0, 'preset' => $preset];
 }
 
 function report_query(array $f): string
@@ -60,21 +61,21 @@ function report_finance(array $f, array &$r): void
     $bp = $cid ? [$cid] : [];
 
     // Serviços pendentes, com as recorrências projetadas dentro do período
-    $pending = rows("SELECT b.*, c.nome AS cliente FROM billings b JOIN clients c ON c.id = b.client_id WHERE b.status = 'pendente'" . ($cid ? ' AND b.client_id = ?' : ''), $bp);
+    $pending = rows("SELECT b.*, c.nome AS cliente FROM billings b JOIN clients c ON c.id = b.client_id WHERE b.status = 'pendente'" . ($cid ? ' AND b.client_id = ?' : '') . client_scope('b.client_id'), $bp);
     $occ = [];   // [serviço, data]
     foreach ($pending as $b) foreach (bill_occurrences($b, $from, $to) as $d) $occ[] = [$b, $d];
     $due = array_sum(array_map(fn($o) => (float) $o[0]['valor'], $occ));
     $paid = rows('SELECT p.*, c.nome AS cliente, b.descricao FROM payments p JOIN clients c ON c.id = p.client_id JOIN billings b ON b.id = p.billing_id
-        WHERE p.pago_em BETWEEN ? AND ?' . ($cid ? ' AND p.client_id = ?' : '') . ' ORDER BY p.pago_em', [$fromT, $toT, ...$bp]);
+        WHERE p.pago_em BETWEEN ? AND ?' . ($cid ? ' AND p.client_id = ?' : '') . client_scope('p.client_id') . ' ORDER BY p.pago_em', [$fromT, $toT, ...$bp]);
     $overdue = array_values(array_filter($pending, fn($b) => $b['vencimento'] < $today));
-    $kp = rows("SELECT valor, periodicidade FROM contracts WHERE status = 'ativo' AND (fim IS NULL OR fim >= ?)" . ($cid ? ' AND client_id = ?' : ''), [$today, ...$bp]);
+    $kp = rows("SELECT valor, periodicidade FROM contracts WHERE status = 'ativo' AND (fim IS NULL OR fim >= ?)" . ($cid ? ' AND client_id = ?' : '') . client_scope('client_id'), [$today, ...$bp]);
     $mrr = array_sum(array_map(fn($k) => (float) $k['valor'] / (REC_MONTHS[$k['periodicidade']] ?? 1), $kp));
 
     $r['kpis'][] = ['Clientes: a vencer no período', fmt_money($due), count($occ) . ' vencimento(s)'];
     $r['kpis'][] = ['Clientes: pago no período', fmt_money(array_sum(array_map(fn($p) => (float) $p['valor'], $paid))), count($paid) . ' pagamento(s)'];
     $r['kpis'][] = ['Clientes: em atraso (hoje)', fmt_money(array_sum(array_map(fn($b) => (float) $b['valor'], $overdue))), count($overdue) . ' serviço(s)'];
     $r['kpis'][] = ['Contratos ativos', (string) count($kp), 'valor mensal: ' . fmt_money($mrr)];
-    if (!$cid) $r['kpis'][] = ['Clientes ativos', (string) (int) val("SELECT COUNT(*) FROM clients WHERE status = 'ativo'"), (int) val('SELECT COUNT(*) FROM clients WHERE criado_em BETWEEN ? AND ?', [$fromT, $toT]) . ' novo(s) no período'];
+    if (!$cid) $r['kpis'][] = ['Clientes ativos', (string) (int) val("SELECT COUNT(*) FROM clients WHERE status = 'ativo'" . client_scope('id')), (int) val('SELECT COUNT(*) FROM clients WHERE criado_em BETWEEN ? AND ?' . client_scope('id'), [$fromT, $toT]) . ' novo(s) no período'];
 
     $byM = array_fill_keys($months, 0.0);
     foreach ($paid as $p) { $m = substr($p['pago_em'], 0, 7); if (isset($byM[$m])) $byM[$m] += (float) $p['valor']; }
@@ -112,7 +113,7 @@ function report_finance(array $f, array &$r): void
 
     // Situação por cliente: início do contrato, último mês pago e próximo vencimento
     $sit = [];
-    foreach (rows('SELECT id, nome FROM clients' . ($cid ? ' WHERE id = ?' : '') . ' ORDER BY nome', $bp) as $c) {
+    foreach (rows('SELECT id, nome FROM clients WHERE 1 = 1' . ($cid ? ' AND id = ?' : '') . client_scope('id') . ' ORDER BY nome', $bp) as $c) {
         $k = contract_active((int) $c['id']);
         $last = val('SELECT MAX(competencia) FROM payments WHERE client_id = ?', [$c['id']]);
         $nextD = val("SELECT MIN(vencimento) FROM billings WHERE client_id = ? AND status = 'pendente'", [$c['id']]);
@@ -138,7 +139,7 @@ function report_tasks(array $f, array &$r): void
     [$from, $to, $cid] = [$f['from'], $f['to'], $f['client']];
     $fromT = $from . ' 00:00:00';
     $toT = $to . ' 23:59:59';
-    $tc = $cid ? ' AND t.client_id = ?' : '';
+    $tc = ($cid ? ' AND t.client_id = ?' : '') . task_scope();
     $tp = $cid ? [$cid] : [];
 
     $open = (int) val("SELECT COUNT(*) FROM tasks t WHERE t.status <> 'feito'$tc", $tp);
@@ -170,7 +171,7 @@ function report_tasks(array $f, array &$r): void
 
     if (!$cid) {
         $byC = [];
-        foreach (rows("SELECT COALESCE(c.nome, 'Sem cliente') n, COUNT(*) c FROM tasks t LEFT JOIN clients c ON c.id = t.client_id WHERE t.status <> 'feito' GROUP BY c.id, c.nome ORDER BY c DESC LIMIT 8") as $x) $byC[$x['n']] = (int) $x['c'];
+        foreach (rows("SELECT COALESCE(c.nome, 'Sem cliente') n, COUNT(*) c FROM tasks t LEFT JOIN clients c ON c.id = t.client_id WHERE t.status <> 'feito'$tc GROUP BY c.id, c.nome ORDER BY c DESC LIMIT 8") as $x) $byC[$x['n']] = (int) $x['c'];
         $r['charts'][] = ['Em aberto por cliente', 'bar', $byC, false];
     }
 

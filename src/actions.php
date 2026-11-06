@@ -24,9 +24,11 @@ function handle_action(string $a): string
             $pemail = filter_var($pemail, FILTER_VALIDATE_EMAIL) ? $pemail : '';
             if ($senha !== '' && $pemail === '') throw new RuntimeException('Informe um e-mail válido para criar o acesso ao portal.');
             $novo = !$id;
+            require_client($id ?: null);
             if ($id) { update('clients', $id, $d); flash('Cliente atualizado.'); }
             else {
                 $id = insert('clients', $d + ['criado_em' => now()]);
+                if (allowed_clients() !== null) insert_user_client((int) $u['id'], $id);   // quem cadastra precisa continuar vendo o cliente
                 flash('Cliente cadastrado! Agora adicione senhas, vencimentos e links.');
                 $ret = url('cliente', ['id' => $id]);
             }
@@ -41,6 +43,7 @@ function handle_action(string $a): string
                 $pu = row('SELECT id FROM client_users WHERE client_id = ? AND email = ?', [$id, $pemail]);
                 if ($pu) {
                     update('client_users', (int) $pu['id'], ['senha_hash' => password_hash($senha, PASSWORD_DEFAULT), 'ativo' => 1]);
+                    q('UPDATE client_users SET sess_ver = sess_ver + 1 WHERE id = ?', [$pu['id']]);
                     flash('Senha do portal redefinida.');
                 } elseif (row('SELECT id FROM client_users WHERE email = ?', [$pemail])) {
                     flash('Já existe um acesso ao portal com o e-mail ' . $pemail . ' em outro cliente. Crie outro na aba Portal.', 'warn');
@@ -67,6 +70,8 @@ function handle_action(string $a): string
             require_can('creds.edit');
             $cid = (int) post('client_id');
             if (!row('SELECT id FROM clients WHERE id = ?', [$cid])) throw new RuntimeException('Escolha o cliente.');
+            require_client($cid);
+            require_client_of('credentials', $id);
             $cat = array_key_exists(post('categoria'), CRED_CATS) ? post('categoria') : 'outro';
             $titulo = post('titulo') ?: CRED_CATS[$cat][0];
             $d = ['client_id' => $cid, 'categoria' => $cat, 'titulo' => $titulo, 'url' => post_or_null('url'),
@@ -84,6 +89,7 @@ function handle_action(string $a): string
 
         case 'cred_delete':
             require_can('creds.delete');
+            require_client_of('credentials', $id);
             q('DELETE FROM credentials WHERE id = ?', [$id]); audit('cred_delete', "#$id"); flash('Acesso excluído.');
             return $ret;
 
@@ -92,6 +98,8 @@ function handle_action(string $a): string
             require_can('billing.edit');
             $cid = (int) post('client_id');
             if (!row('SELECT id FROM clients WHERE id = ?', [$cid])) throw new RuntimeException('Escolha o cliente.');
+            require_client($cid);
+            require_client_of('billings', $id);
             $venc = post('vencimento');
             if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $venc)) throw new RuntimeException('Informe a data de vencimento.');
             $tipo = array_key_exists(post('tipo'), BILL_TYPES) ? post('tipo') : 'outro';
@@ -112,6 +120,7 @@ function handle_action(string $a): string
             require_can('billing.edit');
             $b = row('SELECT * FROM billings WHERE id = ?', [$id]);
             if (!$b) throw new RuntimeException('Serviço não encontrado.');
+            require_client((int) $b['client_id']);
             if ($b['status'] === 'pago') throw new RuntimeException('Este serviço já está pago.');
             record_payment($b, (int) $u['id']);
             if (!isset(REC_MONTHS[$b['recorrencia']])) {
@@ -129,6 +138,7 @@ function handle_action(string $a): string
 
         case 'bill_reopen':
             require_can('billing.edit');
+            require_client_of('billings', $id);
             $last = val('SELECT MAX(id) FROM payments WHERE billing_id = ?', [$id]);
             if ($last) q('DELETE FROM payments WHERE id = ?', [$last]);
             update('billings', $id, ['status' => 'pendente', 'pago_em' => null]); flash('Serviço reaberto.');
@@ -146,6 +156,7 @@ function handle_action(string $a): string
             $bid = (int) post('billing_id'); $comp = post('competencia');
             $b = row('SELECT id, client_id FROM billings WHERE id = ?', [$bid]);
             if (!$b) throw new RuntimeException('Serviço não encontrado.');
+            require_client((int) $b['client_id']);
             if (!preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $comp)) throw new RuntimeException('Competência inválida.');
             $kind = array_key_exists(post('kind'), FILE_KINDS) ? post('kind') : 'boleto';
             [$n, $errs] = save_uploads(['billing_id' => $bid, 'client_id' => (int) $b['client_id'], 'competencia' => $comp], $kind, (int) $u['id']);
@@ -156,8 +167,9 @@ function handle_action(string $a): string
 
         case 'file_delete':
             require_can('billing.edit');
-            $f = row('SELECT id, arquivo, nome FROM files WHERE id = ?', [$id]);
+            $f = row('SELECT id, arquivo, nome, client_id FROM files WHERE id = ?', [$id]);
             if (!$f) throw new RuntimeException('Arquivo não encontrado.');
+            require_client((int) $f['client_id']);
             files_unlink([$f]); q('DELETE FROM files WHERE id = ?', [$id]); audit('file_delete', $f['nome']); flash('Arquivo removido.');
             return $ret;
 
@@ -212,12 +224,15 @@ function handle_action(string $a): string
             $tipo = array_key_exists(post('tipo'), LINK_TYPES) ? post('tipo') : guess_link_type($link);
             $d = ['client_id' => post('client_id') === '' ? null : (int) post('client_id'), 'tipo' => $tipo,
                 'titulo' => post('titulo') ?: LINK_TYPES[$tipo], 'url' => $link, 'notas' => post_or_null('notas')];
+            require_client($d['client_id']);
+            require_client_of('links', $id);
             if ($id) { update('links', $id, $d); flash('Link atualizado.'); }
             else { insert('links', $d + ['criado_em' => now()]); flash('Link adicionado 📁'); }
             return $ret;
 
         case 'link_delete':
             require_can('links.delete');
+            require_client_of('links', $id);
             q('DELETE FROM links WHERE id = ?', [$id]); flash('Link removido.');
             return $ret;
 
@@ -227,6 +242,8 @@ function handle_action(string $a): string
             if ($titulo === '') throw new RuntimeException('Informe o título da tarefa.');
             $cid = post('client_id') === '' ? null : (int) post('client_id');
             if ($cid !== null && !row('SELECT id FROM clients WHERE id = ?', [$cid])) throw new RuntimeException('Cliente não encontrado.');
+            require_client($cid);
+            if ($id) require_task($id);
             $aid = post('assignee_id') === '' ? null : (int) post('assignee_id');
             if ($aid !== null && !row('SELECT id FROM users WHERE id = ? AND ativo = 1', [$aid])) throw new RuntimeException('Responsável inválido.');
             $prazo = post('prazo');
@@ -289,6 +306,8 @@ function handle_action(string $a): string
             require_can('clients.edit');
             $cid = (int) post('client_id');
             if (!row('SELECT id FROM clients WHERE id = ?', [$cid])) throw new RuntimeException('Cliente não encontrado.');
+            require_client($cid);
+            require_client_of('contracts', $id);
             $ini = post('inicio'); $fim = post('fim');
             if (!valid_date($ini)) throw new RuntimeException('Informe a data de início do contrato.');
             if ($fim !== '' && !valid_date($fim)) throw new RuntimeException('Data de término inválida.');
@@ -316,6 +335,8 @@ function handle_action(string $a): string
             require_can('posts.edit');
             $cid = (int) post('client_id');
             if (!row('SELECT id FROM clients WHERE id = ?', [$cid])) throw new RuntimeException('Escolha o cliente.');
+            require_client($cid);
+            require_client_of('posts', $id);
             $dia = post('dia'); $hora = post('hora');
             if (!valid_date($dia)) throw new RuntimeException('Informe a data da postagem.');
             if ($hora !== '' && !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $hora)) throw new RuntimeException('Horário inválido.');
@@ -343,6 +364,7 @@ function handle_action(string $a): string
             $st = post('status');
             if (!isset(POST_STATUS[$st])) throw new RuntimeException('Status inválido.');
             if (!row('SELECT id FROM posts WHERE id = ?', [$id])) throw new RuntimeException('Post não encontrado.');
+            require_client_of('posts', $id);
             update('posts', $id, ['status' => $st, 'publicado_em' => $st === 'concluido' ? now() : null, 'atualizado_em' => now()]);
             flash('Post marcado como ' . mb_strtolower(POST_STATUS[$st]) . '.');
             return $ret;
@@ -358,6 +380,8 @@ function handle_action(string $a): string
             require_can('clients.edit');
             $cid = (int) post('client_id');
             if (!row('SELECT id FROM clients WHERE id = ?', [$cid])) throw new RuntimeException('Cliente não encontrado.');
+            require_client($cid);
+            require_client_of('client_users', $id);
             $email = strtolower(post('email'));
             if (!filter_var($email, FILTER_VALIDATE_EMAIL) || post('nome') === '') throw new RuntimeException('Informe nome e e-mail válidos.');
             if (row('SELECT id FROM client_users WHERE email = ? AND id <> ?', [$email, $id])) throw new RuntimeException('Já existe um acesso ao portal com este e-mail.');
@@ -365,7 +389,11 @@ function handle_action(string $a): string
             $d = ['client_id' => $cid, 'nome' => post('nome'), 'email' => $email, 'ativo' => isset($_POST['ativo']) ? 1 : 0];
             if ($senha !== '' && strlen($senha) < 8) throw new RuntimeException('A senha precisa ter ao menos 8 caracteres.');
             if ($senha !== '') $d['senha_hash'] = password_hash($senha, PASSWORD_DEFAULT);
-            if ($id) { update('client_users', $id, $d); flash('Acesso ao portal atualizado.'); }
+            if ($id) {
+                update('client_users', $id, $d);
+                if ($senha !== '') q('UPDATE client_users SET sess_ver = sess_ver + 1 WHERE id = ?', [$id]);
+                flash('Acesso ao portal atualizado.');
+            }
             else {
                 if ($senha === '') throw new RuntimeException('Defina uma senha com ao menos 8 caracteres.');
                 insert('client_users', $d + ['criado_em' => now()]); flash('Acesso ao portal criado. Envie o link e a senha ao cliente 🎉');
@@ -388,20 +416,27 @@ function handle_action(string $a): string
             if ($dup) throw new RuntimeException('Já existe um usuário com este e-mail.');
             $ativo = isset($_POST['ativo']) ? 1 : 0;
             $senha = (string) ($_POST['senha'] ?? '');
+            $todos = $papel === 'admin' || isset($_POST['acesso_todos']) ? 1 : 0;
+            $escolhidos = $todos ? [] : array_values(array_unique(array_filter(array_map('intval', (array) ($_POST['clientes'] ?? [])))));
             if ($id) {
                 $old = row('SELECT * FROM users WHERE id = ?', [$id]);
                 $admins = (int) val("SELECT COUNT(*) FROM users WHERE papel = 'admin' AND ativo = 1 AND id <> ?", [$id]);
                 if ($old && $admins === 0 && ($papel !== 'admin' || !$ativo)) throw new RuntimeException('Mantenha pelo menos um administrador ativo.');
-                $d = ['nome' => post('nome'), 'email' => $email, 'papel' => $papel, 'telefone' => post_or_null('telefone'), 'ativo' => $ativo];
+                $d = ['nome' => post('nome'), 'email' => $email, 'papel' => $papel, 'telefone' => post_or_null('telefone'), 'ativo' => $ativo, 'acesso_todos' => $todos];
                 if ($senha !== '') { if (strlen($senha) < 8) throw new RuntimeException('A senha precisa ter ao menos 8 caracteres.'); $d['senha_hash'] = password_hash($senha, PASSWORD_DEFAULT); }
-                update('users', $id, $d); flash('Usuário atualizado.');
+                update('users', $id, $d);
+                if ($senha !== '' && $id !== (int) $u['id']) q('UPDATE users SET sess_ver = sess_ver + 1 WHERE id = ?', [$id]);
+                flash('Usuário atualizado.');
             } else {
                 if (strlen($senha) < 8) throw new RuntimeException('Defina uma senha com ao menos 8 caracteres.');
-                insert('users', ['nome' => post('nome'), 'email' => $email, 'papel' => $papel, 'telefone' => post_or_null('telefone'),
+                $id = insert('users', ['nome' => post('nome'), 'email' => $email, 'papel' => $papel, 'telefone' => post_or_null('telefone'), 'acesso_todos' => $todos,
                     'ativo' => $ativo, 'senha_hash' => password_hash($senha, PASSWORD_DEFAULT), 'criado_em' => now()]);
                 flash('Usuário criado 🎉');
             }
-            audit('user_save', $email);
+            q('DELETE FROM user_clients WHERE user_id = ?', [$id]);
+            foreach ($escolhidos as $c) if (row('SELECT id FROM clients WHERE id = ?', [$c])) insert_user_client($id, $c);
+            if (!$todos && !$escolhidos) flash('Este usuário não tem nenhum cliente liberado: ele só verá tarefas gerais e as atribuídas a ele.', 'warn');
+            audit('user_save', $email . ($todos ? ' · todos os clientes' : ' · ' . count($escolhidos) . ' cliente(s)'));
             return $ret;
 
         case 'user_delete':
@@ -430,7 +465,8 @@ function handle_action(string $a): string
             $t = row('SELECT * FROM users WHERE id = ?', [$id]);
             if (!$t) throw new RuntimeException('Usuário não encontrado.');
             $nova = gen_password();
-            update('users', $id, ['senha_hash' => password_hash($nova, PASSWORD_DEFAULT)]);
+            update('users', $id, ['senha_hash' => password_hash($nova, PASSWORD_DEFAULT), 'sess_ver' => (int) $t['sess_ver'] + 1]);
+            if ($id === (int) $u['id']) $_SESSION['sv'] = (int) $t['sess_ver'] + 1;
             audit('user_reset', $t['email']);
             flash('Nova senha de ' . $t['nome'] . ' (' . $t['email'] . '): ' . $nova . ' (anote agora, ela não será exibida novamente).', 'keep');
             return $ret;
@@ -439,6 +475,7 @@ function handle_action(string $a): string
             require_can('clients.edit');
             $t = row('SELECT * FROM client_users WHERE id = ?', [$id]);
             if (!$t) throw new RuntimeException('Acesso não encontrado.');
+            require_client((int) $t['client_id']);
             update('client_users', $id, ['ativo' => $t['ativo'] ? 0 : 1]);
             audit('portal_user_toggle', $t['email'] . ($t['ativo'] ? ' → inativo' : ' → ativo'));
             flash($t['ativo'] ? 'Acesso ao portal desativado.' : 'Acesso ao portal reativado.');
@@ -448,8 +485,9 @@ function handle_action(string $a): string
             require_can('clients.edit');
             $t = row('SELECT * FROM client_users WHERE id = ?', [$id]);
             if (!$t) throw new RuntimeException('Acesso não encontrado.');
+            require_client((int) $t['client_id']);
             $nova = gen_password();
-            update('client_users', $id, ['senha_hash' => password_hash($nova, PASSWORD_DEFAULT), 'ativo' => 1]);
+            update('client_users', $id, ['senha_hash' => password_hash($nova, PASSWORD_DEFAULT), 'ativo' => 1, 'sess_ver' => (int) $t['sess_ver'] + 1]);
             audit('portal_user_reset', $t['email']);
             flash('Nova senha do portal de ' . $t['nome'] . ' (' . $t['email'] . '): ' . $nova . ' (anote agora, ela não será exibida novamente).', 'keep');
             return $ret;
@@ -459,14 +497,94 @@ function handle_action(string $a): string
             $row = row('SELECT senha_hash FROM users WHERE id = ?', [$u['id']]);
             if (!password_verify($cur, $row['senha_hash'])) throw new RuntimeException('Senha atual incorreta.');
             if (strlen($new) < 8) throw new RuntimeException('A nova senha precisa ter ao menos 8 caracteres.');
-            update('users', (int) $u['id'], ['senha_hash' => password_hash($new, PASSWORD_DEFAULT)]); flash('Senha alterada.');
+            $sv = (int) $u['sess_ver'] + 1;
+            update('users', (int) $u['id'], ['senha_hash' => password_hash($new, PASSWORD_DEFAULT), 'sess_ver' => $sv]);
+            $_SESSION['sv'] = $sv;
+            audit('pwd_change', $u['email']);
+            flash('Senha alterada. As outras sessões foram encerradas.');
+            return $ret;
+
+        /* ---------------- Verificação em duas etapas ---------------- */
+        case 'totp_start':
+            if ($u['totp_secret']) throw new RuntimeException('A verificação em duas etapas já está ativa.');
+            $_SESSION['totp_new'] = base32_encode(random_bytes(20));
+            return url('seguranca');
+
+        case 'totp_confirm':
+            $sec = $_SESSION['totp_new'] ?? '';
+            if ($sec === '') throw new RuntimeException('Comece a ativação novamente.');
+            $c = totp_match($sec, preg_replace('/\s+/', '', post('codigo')));
+            if ($c === null) throw new RuntimeException('Código incorreto. Confira se o horário do celular está certo e tente de novo.');
+            [$codes, $hashes] = recovery_generate();
+            update('users', (int) $u['id'], ['totp_secret' => encrypt_secret($sec), 'totp_last' => $c, 'totp_recovery' => $hashes]);
+            unset($_SESSION['totp_new']);
+            $_SESSION['totp_codes'] = $codes;
+            audit('2fa_ativada', $u['email']);
+            flash('Verificação em duas etapas ativada 🔐');
+            return url('seguranca');
+
+        case 'totp_codes':
+        case 'totp_disable':
+            $row = row('SELECT senha_hash FROM users WHERE id = ?', [$u['id']]);
+            if (!password_verify((string) ($_POST['atual'] ?? ''), $row['senha_hash'])) throw new RuntimeException('Senha atual incorreta.');
+            if (!$u['totp_secret']) throw new RuntimeException('A verificação em duas etapas não está ativa.');
+            if ($a === 'totp_codes') {
+                [$codes, $hashes] = recovery_generate();
+                update('users', (int) $u['id'], ['totp_recovery' => $hashes]);
+                $_SESSION['totp_codes'] = $codes;
+                audit('2fa_novos_codigos', $u['email']);
+                flash('Novos códigos gerados. Os anteriores não valem mais.');
+                return url('seguranca');
+            }
+            $rule = setting('require_2fa');
+            if ($rule === 'all' || ($rule === 'admins' && $u['papel'] === 'admin')) throw new RuntimeException('A empresa exige a verificação em duas etapas para o seu perfil.');
+            update('users', (int) $u['id'], ['totp_secret' => null, 'totp_last' => 0, 'totp_recovery' => null]);
+            audit('2fa_desativada', $u['email']);
+            flash('Verificação em duas etapas desativada.');
+            return url('seguranca');
+
+        case 'user_2fa_reset':
+            require_can('users');
+            if ($id === (int) $u['id']) throw new RuntimeException('Para mudar a sua própria verificação, use Minha segurança.');
+            $t = row('SELECT email, nome FROM users WHERE id = ?', [$id]);
+            if (!$t) throw new RuntimeException('Usuário não encontrado.');
+            q('UPDATE users SET totp_secret = NULL, totp_last = 0, totp_recovery = NULL, sess_ver = sess_ver + 1 WHERE id = ?', [$id]);
+            audit('2fa_resetada', $t['email']);
+            flash('Verificação em duas etapas de ' . $t['nome'] . ' desativada. A pessoa precisará entrar de novo.');
+            return $ret;
+
+        /* ---------------- Backups ---------------- */
+        case 'backup_run':
+            require_can('settings');
+            try {
+                $nome = backup_create(true);
+            } catch (RuntimeException $ex) {
+                set_setting('backup_erro', mb_substr($ex->getMessage(), 0, 240));
+                throw $ex;
+            }
+            audit('backup_gerado', $nome);
+            flash('Backup completo gerado ✅ Baixe uma cópia para guardar fora do servidor.');
+            return $ret;
+
+        case 'backup_delete':
+            require_can('settings');
+            $f = backup_path(post('f'));
+            if (!$f) throw new RuntimeException('Backup não encontrado.');
+            unlink($f);
+            audit('backup_excluido', post('f'));
+            flash('Backup excluído.');
             return $ret;
 
         /* ---------------- Configurações ---------------- */
         case 'settings_save':
             require_can('settings');
-            foreach (['empresa_nome', 'alert_emails', 'mail_from', 'smtp_host', 'smtp_user', 'wa_phone', 'wa_apikey', 'wa_webhook_url',
-                'wa_instance', 'wa_client_token', 'wa_meta_template', 'wa_meta_lang'] as $k) set_setting($k, post($k));
+            foreach (['empresa_nome', 'alert_emails', 'mail_from', 'smtp_host', 'smtp_user', 'wa_phone', 'wa_webhook_url',
+                'wa_instance', 'wa_meta_template', 'wa_meta_lang'] as $k) set_setting($k, post($k));
+            foreach (SECRET_SETTINGS as $k) {   // campo vazio mantém o valor salvo; a caixa "remover" apaga
+                if (isset($_POST[$k . '_clear'])) set_setting($k, '');
+                elseif (post($k) !== '') set_setting($k, encrypt_secret(post($k)));
+            }
+            set_setting('require_2fa', in_array(post('require_2fa'), ['admins', 'all'], true) ? post('require_2fa') : '');
             set_setting('smtp_port', (string) ((int) post('smtp_port') ?: ''));
             set_setting('smtp_secure', in_array(post('smtp_secure'), ['ssl', 'tls', 'none'], true) ? post('smtp_secure') : 'ssl');
             if (post('smtp_pass') !== '') set_setting('smtp_pass', encrypt_secret(post('smtp_pass')));

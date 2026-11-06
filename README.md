@@ -2,6 +2,9 @@
 
 Aplicativo em **PHP 8 + MySQL** (preto, branco e roxo) para agências: cadastro de equipe e clientes, cofre de senhas criptografado, vencimentos com alertas (30/15/7 dias) por e-mail e WhatsApp, e central de links do Drive, Canva e Google Agenda. Feito para rodar na **hospedagem compartilhada da Hostinger**, sem Node nem Composer.
 
+## Navegação
+O menu lateral tem só **Início, Clientes, Senhas, Equipe, Guia e Configurações**. Tudo o que é de um cliente fica nas abas da página dele (Pacote, Tarefas, Calendário, Pagamentos, Relatórios, Mensagens, Pastas & Links, Senhas e Portal). As visões de todos os clientes, o catálogo de pacotes e os vencimentos da própria empresa abrem pela faixa "Todos os clientes" no Início.
+
 ## Funcionalidades
 | Módulo | O que faz |
 |---|---|
@@ -28,12 +31,19 @@ Aplicativo em **PHP 8 + MySQL** (preto, branco e roxo) para agências: cadastro 
 3. **Arquivos:** envie todo o conteúdo desta pasta para `public_html` (Gerenciador de Arquivos ou FTP).
 4. **Instalador:** abra `https://seudominio.com/install.php`, informe os dados do MySQL e crie o administrador.
 5. **Apague `install.php`** do servidor.
-6. **SSL:** ative o SSL grátis e descomente o redirecionamento HTTPS no `.htaccess`.
+6. **SSL:** ative o SSL grátis. Depois de instalado, o app redireciona sozinho para HTTPS (para desligar, se o certificado der problema: `'force_https' => false` no `config.php`).
 7. **Alertas:** em *Configurações* preencha o SMTP (Hostinger: `smtp.hostinger.com`, porta 465, SSL, com uma caixa de e-mail criada no hPanel), o WhatsApp e, se quiser, ligue os lembretes aos clientes; depois clique em **Enviar teste**.
 8. **Cron:** *Avançado → Cron Jobs* → diário (ex.: 08:00) com o comando exibido em *Configurações*, algo como  
    `/usr/bin/php /home/uXXXX/domains/seudominio.com/public_html/cron.php`
 
 > ⚠️ Faça backup do `config.php`: a `app_key` dentro dele é a chave que descriptografa as senhas. Sem ela, as senhas salvas não podem ser recuperadas.
+
+## Segurança
+- **Acesso por cliente:** em *Equipe*, edite o usuário e escolha "Todos os clientes" ou os clientes liberados. Quem foi criado antes desta versão continua vendo todos até você restringir; usuários novos começam sem nenhum. Sem acesso ao cliente, a pessoa só vê tarefas gerais e as atribuídas a ela.
+- **Verificação em duas etapas:** cada pessoa ativa em *Minha segurança* (ícone de escudo no menu). Em *Configurações → Segurança* dá para torná-la obrigatória. Celular perdido: use um código de recuperação ou peça a um administrador. Se o único administrador perder o celular e os códigos, limpe `totp_secret` e `totp_recovery` do usuário no phpMyAdmin.
+- **Esqueci a senha:** o link vai por e-mail e vale por 1 hora. Exige SMTP funcionando e que um administrador já tenha aberto *Configurações* ou entrado no app (é assim que o endereço do app fica salvo).
+- **Sessão:** encerra após 4 horas sem uso; trocar a senha derruba as outras sessões.
+- **Backups:** o cron diário salva o banco em `storage/backups` todo dia e, aos domingos, também os arquivos enviados. Baixe cópias em *Configurações → Backups*: elas ficam no mesmo servidor do app. Para restaurar: importe `database.sql` no phpMyAdmin (ele recria as tabelas), copie `uploads/` para `storage/uploads` e use o `config.php` original, pois a `app_key` não vai no backup.
 
 ## Portal do cliente
 Em *Clientes → (cliente) → aba Portal*, crie o login e envie ao cliente o link `https://seudominio.com/portal.php` com e-mail e senha. Instalações antigas criam a tabela `client_users` automaticamente no primeiro acesso após a atualização.

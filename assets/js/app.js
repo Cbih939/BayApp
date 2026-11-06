@@ -28,20 +28,17 @@
     requestAnimationFrame(tick);
   });
 
-  /* brilho que segue o mouse nos cards */
-  document.addEventListener('pointermove', e => {
-    const c = e.target.closest?.('.card'); if (!c) return;
-    const r = c.getBoundingClientRect(); c.style.setProperty('--mx', (e.clientX - r.left) + 'px'); c.style.setProperty('--my', (e.clientY - r.top) + 'px');
-  });
-
   /* filtro rápido */
   $('#quickFilter')?.addEventListener('input', e => {
     const q = e.target.value.toLowerCase().trim();
-    $$('.content .card').forEach(c => { const host = c.closest('.anim-up') && c.parentElement.classList.contains('anim-up') ? c.parentElement : c; host.style.display = !q || c.textContent.toLowerCase().includes(q) ? '' : 'none'; });
+    $$('.content .card, .content .trow').forEach(c => { const host = c.closest('.anim-up') && c.parentElement.classList.contains('anim-up') ? c.parentElement : c; host.style.display = !q || c.textContent.toLowerCase().includes(q) ? '' : 'none'; });
   });
 
   /* confirmação de exclusão */
   document.addEventListener('submit', e => { const m = e.target.dataset?.confirm; if (m && !confirm(m)) e.preventDefault(); });
+
+  /* no celular as abas do cliente rolam de lado: mantém a aberta à vista */
+  $('.ctab.active')?.scrollIntoView({ inline: 'center', block: 'nearest' });
 
   /* abas */
   $$('[data-tab]').forEach(b => b.addEventListener('click', () => {
@@ -130,19 +127,12 @@
 
   /* tour guiado */
   const steps = [
-    ['dashboard', 'Seu painel', 'Resumo de clientes, vencimentos e alertas recentes.'],
-    ['clientes', 'Clientes', 'Cada cliente tem uma página com senhas, vencimentos e links.'],
-    ['tarefas', 'Tarefas', 'Quadro Kanban: clique na tarefa para ler os detalhes, abrir o link e marcar o checklist.'],
-    ['calendario', 'Calendário', 'Planeje as postagens de cada cliente e veja o conteúdo em um clique.'],
-    ['pacotes', 'Pacotes', 'Defina o que cada pacote garante por mês (posts, stories, relatórios…).'],
+    ['dashboard', 'Início', 'Resumo do dia, suas tarefas, pagamentos e os atalhos para ver todos os clientes de uma vez.'],
+    ['clientes', 'Clientes', 'Clique em um cliente para ver tudo dele em abas: pacote, tarefas, calendário, pagamentos, relatórios, mensagens, pastas e links.'],
     ['senhas', 'Cofre de senhas', 'Todos os acessos criptografados, com copiar e gerar senha forte.'],
-    ['pagamentos', 'Pagamentos', 'Calendário dos pagamentos dos clientes: anexe boleto e quitação e acompanhe o que está em aberto ou pago.'],
-    ['vencimentos', 'Vencimentos', 'Contas internas da Bay Groups com alertas em 30, 15 e 7 dias.'],
-    ['relatorios', 'Relatórios', 'Financeiro e tarefas em relatórios separados, com PDF e Excel.'],
-    ['links', 'Pastas & Links', 'Drive, Canva e Agenda de cada cliente, junto com as tarefas em aberto dele.'],
-    ['usuarios', 'Equipe', 'Crie administradores, designers e devs.'],
-    ['config', 'Configurações', 'Ligue os alertas por e-mail e WhatsApp e configure o cron.'],
+    ['usuarios', 'Equipe', 'Crie usuários e escolha quais clientes cada um pode ver.'],
     ['guia', 'Guia', 'Volte aqui sempre que precisar do passo a passo.'],
+    ['config', 'Configurações', 'Ligue os alertas por e-mail e WhatsApp, os backups e a segurança.'],
   ].filter(s => $(`[data-tour="${s[0]}"]`));
   let idx = 0; const tour = $('#tour'), spot = $('#tourSpot'), box = $('#tourBox');
   const show = () => {

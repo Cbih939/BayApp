@@ -3,6 +3,9 @@ $ret0 = url('usuarios');
 $tab = in_array($_GET['t'] ?? '', ['portal', 'atividade'], true) ? $_GET['t'] : 'equipe';
 $ret = url('usuarios', ['t' => $tab]);
 $list = rows('SELECT * FROM users ORDER BY ativo DESC, papel, nome');
+$liberados = [];
+foreach (rows('SELECT user_id, client_id FROM user_clients') as $r) $liberados[(int) $r['user_id']][] = (int) $r['client_id'];
+$allClients = rows('SELECT id, nome, status FROM clients ORDER BY status, nome');
 $portal = rows('SELECT cu.*, c.nome AS cliente, c.empresa FROM client_users cu JOIN clients c ON c.id = cu.client_id ORDER BY cu.ativo DESC, c.nome, cu.nome');
 $canPortal = can('clients.edit');
 $stat = ['total' => count($list), 'ativos' => 0, 'admins' => 0, 'nunca' => 0];
@@ -41,16 +44,19 @@ $audQ = fn(array $o = []) => url('usuarios', array_filter(['t' => 'atividade', '
 
 <section class="tabpane <?= $tab === 'equipe' ? 'active' : '' ?>" id="t-equipe">
 <section class="grid cards">
-<?php foreach ($list as $i => $u): $item = $u; unset($item['senha_hash']); $self = (int) $u['id'] === (int) $me['id']; ?>
+<?php foreach ($list as $i => $u): $item = $u; unset($item['senha_hash'], $item['totp_secret'], $item['totp_recovery']); $item['clientes_ids'] = $liberados[(int) $u['id']] ?? []; $self = (int) $u['id'] === (int) $me['id']; ?>
   <article class="card user tilt anim-up <?= $u['ativo'] ? '' : 'inactive' ?>" style="--i:<?= min($i, 10) ?>" data-item="<?= e(json_encode($item)) ?>">
     <header><span class="avatar"><?= e(initials($u['nome'])) ?></span><div><h4><?= e($u['nome']) ?><?= $self ? ' <small class="muted">(você)</small>' : '' ?></h4><p class="muted"><?= e($u['email']) ?></p></div></header>
     <div class="chips"><span class="chip role-<?= e($u['papel']) ?>"><?= e(ROLES[$u['papel']]) ?></span><?php if (!$u['ativo']): ?><span class="chip">inativo</span><?php endif; ?>
+      <span class="chip <?= $u['papel'] === 'admin' || $u['acesso_todos'] ? 'dim' : 'tag-d30' ?>"><?= $u['papel'] === 'admin' || $u['acesso_todos'] ? 'todos os clientes' : count($liberados[(int) $u['id']] ?? []) . ' cliente(s)' ?></span>
       <?php if ($u['telefone']): ?><span class="chip dim"><?= e($u['telefone']) ?></span><?php endif; ?>
+      <span class="chip <?= $u['totp_secret'] ? 'tag-ok' : 'tag-none' ?>"><?= $u['totp_secret'] ? '2 etapas ativa' : 'sem 2 etapas' ?></span>
       <span class="chip dim">último acesso: <?= $u['ultimo_login'] ? ago($u['ultimo_login']) : 'nunca' ?></span>
       <span class="chip dim">desde <?= fmt_date($u['criado_em']) ?></span></div>
     <div class="card-actions row"><button type="button" class="icon-btn" data-edit="dlg-user" title="Editar"><?= icon('edit') ?></button>
       <a class="icon-btn" href="<?= e($audQ(['u' => (string) $u['id']])) ?>" title="Ver atividade"><?= icon('shield') ?></a>
       <?= user_action_btn('user_reset', (int) $u['id'], $ret, 'key', 'Redefinir senha (gera uma nova)', 'Gerar nova senha para ' . $u['nome'] . '? A senha atual deixará de funcionar.') ?>
+      <?php if ($u['totp_secret'] && !$self) echo user_action_btn('user_2fa_reset', (int) $u['id'], $ret, 'shield', 'Desativar a verificação em duas etapas (celular perdido)', 'Desativar a verificação em duas etapas de ' . $u['nome'] . '? Faça isso só depois de confirmar que é mesmo essa pessoa pedindo.'); ?>
       <?php if (!$self): echo user_action_btn('user_toggle', (int) $u['id'], $ret, $u['ativo'] ? 'x' : 'play', $u['ativo'] ? 'Desativar' : 'Reativar', ($u['ativo'] ? 'Desativar ' : 'Reativar ') . $u['nome'] . '?');
         echo delete_btn('user_delete', (int) $u['id'], $ret, 'o usuário ' . $u['nome']); endif; ?></div>
   </article>
@@ -58,7 +64,7 @@ $audQ = fn(array $o = []) => url('usuarios', array_filter(['t' => 'atividade', '
 </section>
 <section class="card perms anim-up"><h4>O que cada perfil pode fazer</h4>
   <table><thead><tr><th>Recurso</th><th>Administrador</th><th>Desenvolvedor</th><th>Designer</th></tr></thead><tbody>
-    <tr><td>Ver senhas, vencimentos e links</td><td>✔</td><td>✔</td><td>✔</td></tr>
+    <tr><td>Ver senhas, vencimentos e links <small class="muted">(só dos clientes liberados para o usuário)</small></td><td>✔</td><td>✔</td><td>✔</td></tr>
     <tr><td>Editar senhas e links</td><td>✔</td><td>✔</td><td>✔</td></tr>
     <tr><td>Cadastrar/editar clientes e acessos do portal</td><td>✔</td><td>✔</td><td>✔</td></tr>
     <tr><td>Pagamentos dos clientes (anexar boleto e quitação, marcar como pago)</td><td>✔</td><td>✔</td><td>—</td></tr>
@@ -106,9 +112,25 @@ $audQ = fn(array $o = []) => url('usuarios', array_filter(['t' => 'atividade', '
   <input type="hidden" name="action" value="user_save"><input type="hidden" name="id" value=""><input type="hidden" name="return" value="<?= e($ret) ?>">
   <header class="modal-h"><h3 data-title="Novo usuário|Editar usuário">Novo usuário</h3><button type="button" class="icon-btn" data-close><?= icon('x') ?></button></header>
   <div class="grid2"><label>Nome<input name="nome" required></label><label>E-mail (login)<input type="email" name="email" required></label></div>
-  <div class="grid2"><label>Perfil<select name="papel"><?php foreach (ROLES as $k => $v): ?><option value="<?= $k ?>"><?= e($v) ?></option><?php endforeach; ?></select></label>
+  <div class="grid2"><label>Perfil<select name="papel"><?php foreach (ROLES as $k => $v): ?><option value="<?= $k ?>" <?= $k === 'designer' ? 'selected' : '' ?>><?= e($v) ?></option><?php endforeach; ?></select></label>
     <label>Telefone<input name="telefone"></label></div>
   <label>Senha <span class="muted" data-keep hidden>(vazio = manter)</span><div class="pwwrap"><input name="senha" type="text" class="mono" minlength="8" autocomplete="new-password"><button type="button" class="icon-btn" data-gen><?= icon('dice') ?></button></div></label>
   <label class="switch"><input type="checkbox" name="ativo" checked><span></span> Usuário ativo</label>
+  <div class="field" id="user-access"><label>Clientes que este usuário pode ver</label>
+    <label class="switch"><input type="checkbox" name="acesso_todos" id="ua-todos"><span></span> Todos os clientes (atuais e futuros)</label>
+    <div class="ua-list" id="ua-list"><?php foreach ($allClients as $c): ?>
+      <label class="ua-i"><input type="checkbox" name="clientes[]" value="<?= (int) $c['id'] ?>"> <?= e($c['nome']) ?><?= $c['status'] === 'ativo' ? '' : ' <small class="muted">(inativo)</small>' ?></label><?php endforeach; ?>
+      <?php if (!$allClients): ?><p class="muted small">Nenhum cliente cadastrado ainda.</p><?php endif; ?></div>
+    <p class="note">Sem cliente liberado, o usuário só vê tarefas gerais e as atribuídas a ele. Administradores sempre veem todos.</p></div>
   <footer class="modal-f"><button type="button" class="btn ghost" data-close>Cancelar</button><button class="btn primary">Salvar usuário</button></footer>
 </form></dialog>
+<script>
+(() => {
+  const dlg = document.getElementById('dlg-user'), f = dlg.querySelector('form'), todos = document.getElementById('ua-todos'), list = document.getElementById('ua-list');
+  const sync = () => { const admin = f.elements.papel.value === 'admin'; document.getElementById('user-access').hidden = admin; list.hidden = todos.checked; };
+  const boxes = () => [...list.querySelectorAll('input[type=checkbox]')];
+  dlg.addEventListener('bay:reset', () => { todos.checked = false; boxes().forEach(b => { b.checked = false; }); sync(); });
+  dlg.addEventListener('bay:fill', e => { const ids = (e.detail.clientes_ids || []).map(Number); boxes().forEach(b => { b.checked = ids.includes(+b.value); }); sync(); });
+  todos.addEventListener('change', sync); f.elements.papel.addEventListener('change', sync); sync();
+})();
+</script>

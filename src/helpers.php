@@ -90,6 +90,11 @@ const AUDIT_LABELS = [
     'client_save' => 'Cliente salvo', 'client_delete' => 'Cliente excluído', 'cred_save' => 'Acesso salvo', 'cred_delete' => 'Acesso excluído',
     'bill_save' => 'Vencimento salvo', 'bill_pay' => 'Vencimento pago', 'bill_delete' => 'Vencimento excluído',
     'report_export' => 'Relatório baixado', 'report_whatsapp' => 'Relatório enviado ao WhatsApp',
+    'pwd_change' => 'Senha alterada', 'pwreset_pedido' => 'Recuperação de senha pedida', 'pwreset_feito' => 'Senha redefinida por e-mail',
+    'portal_pwreset_pedido' => 'Recuperação de senha pedida (portal)', 'portal_pwreset_feito' => 'Senha redefinida por e-mail (portal)',
+    '2fa_ativada' => 'Duas etapas ativada', '2fa_desativada' => 'Duas etapas desativada', '2fa_resetada' => 'Duas etapas desativada pelo administrador',
+    '2fa_novos_codigos' => 'Novos códigos de recuperação', '2fa_codigo_recuperacao' => 'Login com código de recuperação',
+    'backup_gerado' => 'Backup gerado', 'backup_download' => 'Backup baixado', 'backup_excluido' => 'Backup excluído',
 ];
 
 const ROLES = ['admin' => 'Administrador', 'designer' => 'Designer', 'dev' => 'Desenvolvedor'];
@@ -173,7 +178,7 @@ function guess_link_type(string $url): string
 }
 
 /** Versão do CSS que este código espera (precisa bater com `--bay-css` no fim de assets/css/app.css; some 1 ao mudar o CSS). */
-const ASSET_CSS_VERSION = '6';
+const ASSET_CSS_VERSION = '8';
 
 /**
  * CSS e JS vão DENTRO da página: hospedagens/CDNs costumam guardar arquivos estáticos (.css/.js) por muito tempo,

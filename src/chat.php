@@ -48,7 +48,7 @@ function chat_unread_team(?int $clientId = null): int
 {
     return (int) ($clientId
         ? val("SELECT COUNT(*) FROM messages WHERE sender = 'client' AND lida_em IS NULL AND client_id = ?", [$clientId])
-        : val("SELECT COUNT(*) FROM messages WHERE sender = 'client' AND lida_em IS NULL"));
+        : val("SELECT COUNT(*) FROM messages WHERE sender = 'client' AND lida_em IS NULL" . client_scope('client_id')));
 }
 
 /** Respostas da equipe ainda não lidas pelo cliente. */
@@ -91,7 +91,7 @@ function chat_conversations(): array
 {
     $list = rows("SELECT c.id, c.nome, c.empresa, MAX(m.id) AS last_id,
                   SUM(CASE WHEN m.sender = 'client' AND m.lida_em IS NULL THEN 1 ELSE 0 END) AS unread
-                  FROM clients c JOIN messages m ON m.client_id = c.id GROUP BY c.id, c.nome, c.empresa ORDER BY last_id DESC");
+                  FROM clients c JOIN messages m ON m.client_id = c.id WHERE 1 = 1" . client_scope('c.id') . " GROUP BY c.id, c.nome, c.empresa ORDER BY last_id DESC");
     if (!$list) return [];
     $ids = array_map(fn($r) => (int) $r['last_id'], $list);
     $last = [];
@@ -129,7 +129,7 @@ function chat_api(string $viewer, ?int $clientId, array $author): never
         if ($a === 'list' && $viewer === 'team') $out(['conversas' => chat_conversations(), 'unread' => chat_unread_team()]);
 
         if ($viewer === 'team') $clientId = (int) ($_GET['client_id'] ?? $_POST['client_id'] ?? 0);
-        if (!$clientId || !row('SELECT id FROM clients WHERE id = ?', [$clientId])) $out(['erro' => 'Cliente não encontrado.'], 404);
+        if (!$clientId || !row('SELECT id FROM clients WHERE id = ?', [$clientId]) || !client_allowed($clientId)) $out(['erro' => 'Cliente não encontrado.'], 404);
 
         if ($a === 'send') {
             if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !csrf_ok()) $out(['erro' => 'Sessão expirada. Recarregue a página.'], 403);

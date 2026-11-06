@@ -1,7 +1,8 @@
 <!doctype html>
 <html lang="pt-BR" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Entrar — <?= e(setting('empresa_nome', 'BayApp')) ?></title>
-<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png"><link rel="apple-touch-icon" href="assets/img/favicon.png"><?= inline_css() ?></head>
+<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon-32.png"><link rel="apple-touch-icon" href="assets/img/favicon.png"><?= inline_css() ?>
+<script>try{var t=localStorage.getItem('bay-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script></head>
 <body class="auth-body"><?= css_stale_banner() ?><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
 <main class="auth-card anim-up">
   <div class="brand big"><?= brand_logo(setting('empresa_nome', 'BayGroups')) ?></div>
@@ -13,5 +14,6 @@
     <label>Senha<input type="password" name="senha" required autocomplete="current-password"></label>
     <button class="btn primary">Entrar <?= icon('logout', 18) ?></button>
   </form>
+  <p class="muted small"><a class="link" href="<?= url('esqueci') ?>">Esqueci minha senha</a></p>
   <p class="muted small">É cliente? <a class="link" href="portal.php">Acesse o portal do cliente →</a></p>
 </main></body></html>
