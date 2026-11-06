@@ -11,7 +11,7 @@
 <header class="ptop">
   <a class="brand" href="portal.php"><?= brand_logo($empresa) ?></a>
   <nav class="pnav"><?php foreach ($tabs as $slug => [$label, $ico]): ?>
-    <a href="portal.php?p=<?= $slug ?>" class="<?= $p === $slug ? 'active' : '' ?>"><?= icon($ico, 18) ?><span><?= e($label) ?></span><?php if ($slug === 'chat'): ?><em class="badge pulse" data-chat-badge <?= $chatUnread ? '' : 'hidden' ?>><?= $chatUnread ?></em><?php endif; ?></a><?php endforeach; ?></nav>
+    <a href="portal.php?p=<?= $slug ?>" class="<?= $p === $slug ? 'active' : '' ?>"><?= icon($ico, 18) ?><span><?= e($label) ?></span><?php if ($slug === 'aprovacoes' && $nAppr): ?><em class="badge"><?= $nAppr ?></em><?php endif; ?><?php if ($slug === 'chat'): ?><em class="badge pulse" data-chat-badge <?= $chatUnread ? '' : 'hidden' ?>><?= $chatUnread ?></em><?php endif; ?></a><?php endforeach; ?></nav>
   <div class="pme"><span class="avatar sm"><?= e(initials($me['nome'])) ?></span><b class="pname"><?= e($me['nome']) ?></b>
     <button class="theme-tg" id="themeBtn" title="Tema claro/escuro" aria-label="Alternar tema claro/escuro"><span class="tg-l"><?= icon('sun', 15) ?></span><span class="tg-d"><?= icon('moon', 15) ?></span></button>
     <button class="icon-btn" data-open="dlg-pwd" title="Alterar senha"><?= icon('shield') ?></button>

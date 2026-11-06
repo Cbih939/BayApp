@@ -94,6 +94,8 @@ const AUDIT_LABELS = [
     'portal_pwreset_pedido' => 'Recuperação de senha pedida (portal)', 'portal_pwreset_feito' => 'Senha redefinida por e-mail (portal)',
     '2fa_ativada' => 'Duas etapas ativada', '2fa_desativada' => 'Duas etapas desativada', '2fa_resetada' => 'Duas etapas desativada pelo administrador',
     '2fa_novos_codigos' => 'Novos códigos de recuperação', '2fa_codigo_recuperacao' => 'Login com código de recuperação',
+    'entregas_geradas' => 'Entregas do pacote geradas', 'post_aprovacao_externa' => 'Aprovação registrada pela equipe',
+    'portal_aprovou' => 'Cliente aprovou conteúdo', 'portal_ajustes' => 'Cliente pediu ajustes',
     'backup_gerado' => 'Backup gerado', 'backup_download' => 'Backup baixado', 'backup_excluido' => 'Backup excluído',
 ];
 
@@ -178,7 +180,7 @@ function guess_link_type(string $url): string
 }
 
 /** Versão do CSS que este código espera (precisa bater com `--bay-css` no fim de assets/css/app.css; some 1 ao mudar o CSS). */
-const ASSET_CSS_VERSION = '8';
+const ASSET_CSS_VERSION = '9';
 
 /**
  * CSS e JS vão DENTRO da página: hospedagens/CDNs costumam guardar arquivos estáticos (.css/.js) por muito tempo,

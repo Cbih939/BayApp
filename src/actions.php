@@ -183,7 +183,10 @@ function handle_action(string $a): string
             $d = ['categoria' => array_key_exists(post('categoria'), INTERNAL_CATS) ? post('categoria') : 'outro', 'descricao' => mb_substr($desc, 0, 200),
                 'fornecedor' => post_or_null('fornecedor'), 'valor' => parse_money(post('valor')), 'vencimento' => $venc,
                 'recorrencia' => array_key_exists(post('recorrencia'), REC_LABELS) ? post('recorrencia') : 'nenhuma',
-                'avisar_email' => isset($_POST['avisar_email']) ? 1 : 0, 'avisar_whatsapp' => isset($_POST['avisar_whatsapp']) ? 1 : 0, 'notas' => post_or_null('notas')];
+                'avisar_email' => isset($_POST['avisar_email']) ? 1 : 0, 'avisar_whatsapp' => isset($_POST['avisar_whatsapp']) ? 1 : 0, 'notas' => post_or_null('notas'),
+                'client_id' => post('client_id') === '' ? null : (int) post('client_id')];
+            if ($d['client_id'] !== null && !row('SELECT id FROM clients WHERE id = ?', [$d['client_id']])) throw new RuntimeException('Cliente não encontrado.');
+            require_client($d['client_id']);
             if ($id) { update('internal_bills', $id, $d); flash('Vencimento interno atualizado.'); }
             else { insert('internal_bills', $d + ['status' => 'pendente', 'criado_em' => now()]); flash('Vencimento interno cadastrado. Você será avisado com 30, 15 e 7 dias de antecedência 🔔'); }
             audit('ibill_save', $desc);
@@ -320,7 +323,14 @@ function handle_action(string $a): string
             if ($id) { update('contracts', $id, $d); flash('Contrato atualizado.'); }
             else {
                 if ($d['status'] === 'ativo') q("UPDATE contracts SET status = 'encerrado' WHERE client_id = ? AND status = 'ativo'", [$cid]);
-                insert('contracts', $d + ['criado_em' => now()]); flash('Contrato cadastrado 📄');
+                $id = insert('contracts', $d + ['criado_em' => now()]); flash('Contrato cadastrado 📄');
+            }
+            // pacote vinculado: as entregas do mês vão para o calendário
+            $k = row('SELECT k.*, p.nome AS plano FROM contracts k LEFT JOIN plans p ON p.id = k.plan_id WHERE k.id = ?', [$id]);
+            if ($k && $k['plan_id'] && $k['status'] === 'ativo' && can('posts.edit')) {
+                $ym = date('Y-m');
+                if ($n = generate_deliveries($k, $ym)) flash("$n entrega(s) do pacote criada(s) no calendário de " . month_label($ym) . '.');
+                cycle_mark((int) $k['id'], $ym, $n);
             }
             audit('contract_save', "cliente #$cid");
             return $ret;
@@ -341,21 +351,35 @@ function handle_action(string $a): string
             if (!valid_date($dia)) throw new RuntimeException('Informe a data da postagem.');
             if ($hora !== '' && !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $hora)) throw new RuntimeException('Horário inválido.');
             $status = array_key_exists(post('status'), POST_STATUS) ? post('status') : 'rascunho';
-            $old = $id ? row('SELECT status, publicado_em FROM posts WHERE id = ?', [$id]) : null;
+            $old = $id ? row('SELECT * FROM posts WHERE id = ?', [$id]) : null;
             if ($id && !$old) throw new RuntimeException('Post não encontrado.');
             $d = ['client_id' => $cid, 'dia' => $dia, 'hora' => $hora === '' ? null : $hora,
                 'canal' => array_key_exists(post('canal'), POST_CHANNELS) ? post('canal') : 'outro',
                 'formato' => array_key_exists(post('formato'), POST_FORMATS) ? post('formato') : 'post',
                 'titulo' => post_or_null('titulo') === null ? null : mb_substr(post('titulo'), 0, 200), 'legenda' => post_or_null('legenda'),
-                'midia_url' => clean_link(post('midia_url')), 'status' => $status, 'atualizado_em' => now(),
-                'publicado_em' => $status === 'concluido' ? (($old && $old['publicado_em']) ?: now()) : null];
+                'midia_url' => clean_link(post('midia_url')), 'atualizado_em' => now()];
             $img = save_post_image();
             $prev = $id ? row('SELECT imagem FROM posts WHERE id = ?', [$id]) : null;
             if ($img) $d += ['imagem' => $img[0], 'imagem_nome' => $img[1]];
             elseif ($prev && $prev['imagem'] && isset($_POST['remover_imagem'])) $d += ['imagem' => null, 'imagem_nome' => null];
+            // mudou o conteúdo depois de pronto: nova versão, e a aprovação anterior deixa de valer
+            $changed = $old && ([$d['titulo'], $d['legenda'], $d['midia_url']] !== [$old['titulo'], $old['legenda'], $old['midia_url']] || array_key_exists('imagem', $d));
+            if ($changed) $d['versao'] = (int) $old['versao'] + 1;
             if ($id) { update('posts', $id, $d); flash('Post atualizado.'); }
-            else { insert('posts', $d + ['criado_por' => $u['id'], 'criado_em' => now()]); flash('Post agendado no calendário 📅'); }
+            else { $id = insert('posts', $d + ['status' => 'rascunho', 'versao' => 1, 'criado_por' => $u['id'], 'criado_em' => now()]); post_event($id, 1, 'criado'); flash('Post criado no calendário 📅'); }
             if ($prev && $prev['imagem'] && array_key_exists('imagem', $d)) files_unlink([['arquivo' => $prev['imagem']]]);
+            $p = row('SELECT * FROM posts WHERE id = ?', [$id]);
+            if ($changed) {
+                post_event($id, (int) $p['versao'], 'versao', 'Versão ' . (int) $p['versao']);
+                if (approval_required() && in_array($old['status'], array_merge(POST_APPROVED, ['aprov_cli']), true) && $old['status'] !== 'concluido') {
+                    $status = 'aprov_cli';
+                    if ($old['status'] === 'aprov_cli') { post_event($id, (int) $p['versao'], 'enviado', 'Nova versão enviada'); notify_approval_request($p); }
+                    else flash('O conteúdo mudou depois de aprovado: a versão ' . (int) $p['versao'] . ' voltou para a aprovação do cliente.', 'warn');
+                }
+            }
+            if ($block = post_status_block($p, $status)) flash($block, 'err');
+            else post_set_status($p, $status);
+            if ($extra = plan_extras((int) $cid, substr($dia, 0, 7))) flash('Além do pacote neste mês: ' . implode(', ', $extra) . '. Pode ser uma demanda extra para orçar.', 'warn');
             audit('post_save', $dia);
             return $ret;
 
@@ -363,10 +387,38 @@ function handle_action(string $a): string
             require_can('posts.edit');
             $st = post('status');
             if (!isset(POST_STATUS[$st])) throw new RuntimeException('Status inválido.');
-            if (!row('SELECT id FROM posts WHERE id = ?', [$id])) throw new RuntimeException('Post não encontrado.');
-            require_client_of('posts', $id);
-            update('posts', $id, ['status' => $st, 'publicado_em' => $st === 'concluido' ? now() : null, 'atualizado_em' => now()]);
+            $p = row('SELECT * FROM posts WHERE id = ?', [$id]);
+            if (!$p) throw new RuntimeException('Post não encontrado.');
+            require_client((int) $p['client_id']);
+            if ($block = post_status_block($p, $st)) throw new RuntimeException($block);
+            post_set_status($p, $st);
             flash('Post marcado como ' . mb_strtolower(POST_STATUS[$st]) . '.');
+            return $ret;
+
+        case 'post_approve_manual':
+            require_can('posts.edit');
+            $p = row('SELECT * FROM posts WHERE id = ?', [$id]);
+            if (!$p) throw new RuntimeException('Post não encontrado.');
+            require_client((int) $p['client_id']);
+            $como = post('comentario');
+            if ($como === '') throw new RuntimeException('Diga como o cliente aprovou (ex.: "aprovado pelo WhatsApp em 05/11 por Ana").');
+            post_event($id, (int) $p['versao'], 'aprovado', 'Registrado pela equipe: ' . $como);
+            if (!in_array($p['status'], POST_APPROVED, true)) post_set_status($p, 'aguardando', '', false);
+            audit('post_aprovacao_externa', "#$id v" . (int) $p['versao']);
+            flash('Aprovação registrada no histórico ✅');
+            return $ret;
+
+        case 'deliveries_generate':
+            require_can('posts.edit');
+            $cid = (int) post('client_id');
+            require_client($cid);
+            $ym = preg_match('/^\d{4}-\d{2}$/', post('m')) ? post('m') : date('Y-m');
+            $k = contract_active($cid);
+            if (!$k || !$k['plan_id']) throw new RuntimeException('O cliente precisa de um contrato em vigor com pacote.');
+            $n = generate_deliveries($k, $ym);
+            cycle_mark((int) $k['id'], $ym, $n);
+            audit('entregas_geradas', "cliente #$cid · $ym · $n");
+            flash($n ? "$n entrega(s) de " . month_label($ym) . ' criada(s) no calendário, em rascunho ✅' : 'O calendário de ' . month_label($ym) . ' já tem todas as entregas do pacote.');
             return $ret;
 
         case 'post_delete':
@@ -584,6 +636,7 @@ function handle_action(string $a): string
                 if (isset($_POST[$k . '_clear'])) set_setting($k, '');
                 elseif (post($k) !== '') set_setting($k, encrypt_secret(post($k)));
             }
+            set_setting('aprovacao_cliente', isset($_POST['aprovacao_cliente']) ? '1' : '0');
             set_setting('require_2fa', in_array(post('require_2fa'), ['admins', 'all'], true) ? post('require_2fa') : '');
             set_setting('smtp_port', (string) ((int) post('smtp_port') ?: ''));
             set_setting('smtp_secure', in_array(post('smtp_secure'), ['ssl', 'tls', 'none'], true) ? post('smtp_secure') : 'ssl');

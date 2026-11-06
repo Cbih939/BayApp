@@ -133,7 +133,7 @@
       dlgDay?.close();
       $('#pv-item').dataset.item = JSON.stringify(p);
       $('#pv-av').textContent = initials(p.cliente); $('#pv-client').textContent = p.cliente;
-      $('#pv-sub').textContent = `${p.canal_label} · ${p.formato_label}` + (p.titulo ? ' · ' + p.titulo : '');
+      $('#pv-sub').textContent = `${p.canal_label} · ${p.formato_label}` + (p.titulo ? ' · ' + p.titulo : '') + (+p.versao > 1 ? ` · versão ${p.versao}` : '');
       const cap = $('#pv-caption'); cap.textContent = p.legenda || 'Sem legenda.'; cap.classList.toggle('muted', !p.legenda);
       const m = $('#pv-media'); m.innerHTML = '';
       if (p.imagem) { const i = el('img'); i.src = 'index.php?p=postimg&id=' + p.id; i.alt = 'Arte do post'; i.loading = 'lazy'; m.append(i); }
@@ -146,10 +146,18 @@
       const li4 = $('#pv-i-when'); li4.innerHTML = ''; li4.className = p.status === 'concluido' ? 'ok' : '';
       li4.append(el('i', 'pv-ic', p.status === 'concluido' ? '✓' : '◷'), el('span', '', p.status === 'concluido' ? 'Publicado em ' + fmtDT(p.publicado_em) : 'Programado para ' + p.dia_fmt + (p.hora ? ' às ' + p.hora : '')));
       const h = $('#pv-hist'); h.innerHTML = '';
-      [['Criado' + (p.autor ? ' por ' + p.autor : ''), p.criado_em], p.atualizado_em && p.atualizado_em !== p.criado_em ? ['Última edição', p.atualizado_em] : null, p.publicado_em ? ['Publicado', p.publicado_em] : null]
+      const evs = (p.eventos || []).slice().reverse();
+      if (!evs.length) [['Criado' + (p.autor ? ' por ' + p.autor : ''), p.criado_em], p.publicado_em ? ['Publicado', p.publicado_em] : null]
         .filter(Boolean).forEach(([t, d]) => { const li = el('li'); li.append(el('b', '', t), el('small', 'muted', fmtDT(d))); h.append(li); });
+      evs.forEach(ev => {
+        const li = el('li', 'ev-' + ev.tipo);
+        li.append(el('b', '', ev.label + (+ev.versao > 1 || ev.tipo === 'versao' ? ' · v' + ev.versao : '')), el('small', 'muted', (ev.autor_tipo === 'cliente' ? 'Cliente · ' : '') + ev.autor + ' · ' + fmtDT(ev.criado_em)));
+        if (ev.detalhe) li.append(el('p', 'note', ev.detalhe));
+        h.append(li);
+      });
       $$('[data-pv]', pv).forEach(b => b.classList.toggle('active', b.dataset.pv === 'preview')); $$('.pv-pane', pv).forEach(x => x.hidden = x.dataset.pane !== 'preview');
-      const pub = $('#pv-pub'); if (pub) { pub.elements.id.value = p.id; pub.hidden = p.status === 'concluido'; }
+      const pub = $('#pv-pub'); if (pub) { pub.elements.id.value = p.id; pub.hidden = p.status === 'concluido' || !p.aprovado; }
+      const ext = $('#pv-ext'); if (ext) { ext.elements.id.value = p.id; ext.elements.comentario.value = ''; ext.hidden = p.aprovado || p.status === 'cancelado'; }
       const stf = $('#pv-status'); if (stf) { stf.elements.id.value = p.id; stf.elements.status.value = p.status; }
       const del = $('#pv-del'); if (del) del.elements.id.value = p.id;
       pv.showModal();

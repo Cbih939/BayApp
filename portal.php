@@ -33,6 +33,36 @@ if ($p === 'arquivo') {
     serve_file($f);
 }
 
+/* Arte de um conteúdo do próprio cliente (só os que já chegaram até ele) */
+if ($p === 'postimg') {
+    $in = implode(',', array_map(fn($s) => "'$s'", POST_CLIENT_VISIBLE));
+    $f = row("SELECT imagem AS arquivo, imagem_nome AS nome FROM posts WHERE id = ? AND client_id = ? AND imagem IS NOT NULL AND status IN ($in)", [(int) ($_GET['id'] ?? 0), (int) $me['client_id']]);
+    if (!$f) { http_response_code(404); exit('Imagem não encontrada.'); }
+    serve_file($f);
+}
+
+/* Aprovar ou pedir ajustes: vale só para a versão que o cliente estava vendo */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && post('action') === 'decidir') {
+    try {
+        if (!csrf_ok()) throw new RuntimeException('Sessão expirada. Recarregue a página.');
+        $post = row("SELECT * FROM posts WHERE id = ? AND client_id = ? AND status = 'aprov_cli'", [(int) post('id'), (int) $me['client_id']]);
+        if (!$post) throw new RuntimeException('Este conteúdo não está mais aguardando aprovação.');
+        if ((int) post('versao') !== (int) $post['versao']) throw new RuntimeException('A equipe enviou uma versão mais nova deste conteúdo. Veja de novo antes de decidir.');
+        $dec = post('decisao') === 'aprovado' ? 'aprovado' : 'ajustes';
+        $com = mb_substr(post('comentario'), 0, 2000);
+        if ($dec === 'ajustes' && $com === '') throw new RuntimeException('Escreva o que precisa ser ajustado.');
+        $who = [$me['nome'], 'cliente'];
+        post_event((int) $post['id'], (int) $post['versao'], $dec, $com, $who);
+        post_set_status($post, $dec === 'aprovado' ? 'aguardando' : 'ajustes', '', false);
+        audit($dec === 'aprovado' ? 'portal_aprovou' : 'portal_ajustes', '#' . $post['id'] . ' v' . $post['versao'] . ' · ' . $me['email']);
+        notify_approval_decision($post, $dec, $com, $me['nome']);
+        flash($dec === 'aprovado' ? 'Conteúdo aprovado. Obrigado! ✅' : 'Pedido de ajustes enviado para a equipe.');
+    } catch (RuntimeException $ex) {
+        flash($ex->getMessage(), 'err');
+    }
+    redirect('portal.php?p=aprovacoes');
+}
+
 /* Troca de senha do próprio cliente */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -51,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect('portal.php?p=' . $p);
 }
 
-if (!in_array($p, ['inicio', 'pagamentos', 'links', 'chat'], true)) $p = 'inicio';
+if (!in_array($p, ['inicio', 'aprovacoes', 'pagamentos', 'links', 'chat'], true)) $p = 'inicio';
 require __DIR__ . '/pages/_partials.php';
 
 $cid = (int) $me['client_id'];
@@ -61,7 +91,8 @@ $paid = cycle_paid_events($cid, true, null, null, 36);
 $links = rows('SELECT * FROM links WHERE client_id = ? ORDER BY tipo, titulo', [$cid]);
 $ret = 'portal.php';
 
-$tabs = ['inicio' => ['Início', 'home'], 'pagamentos' => ['Pagamentos', 'card'], 'links' => ['Pastas & Links', 'folder'], 'chat' => ['Mensagens', 'chat']];
+$nAppr = (int) val("SELECT COUNT(*) FROM posts WHERE client_id = ? AND status = 'aprov_cli'", [$cid]);
+$tabs = ['inicio' => ['Início', 'home'], 'aprovacoes' => ['Aprovações', 'check'], 'pagamentos' => ['Pagamentos', 'card'], 'links' => ['Pastas & Links', 'folder'], 'chat' => ['Mensagens', 'chat']];
 $chatUnread = chat_unread_client($cid);
 ob_start();
 require __DIR__ . "/pages/portal_$p.php";

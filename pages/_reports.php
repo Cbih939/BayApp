@@ -45,9 +45,9 @@ $waLink = 'https://wa.me/' . $clientWa . '?text=' . rawurlencode(report_text($r)
 </section>
 
 <section class="grid rep-charts">
-  <?php foreach ($r['charts'] as $i => [$t, $kind, $d, $money]): ?>
+  <?php foreach ($r['charts'] as $i => $ch): [$t, $kind, $d, $money] = $ch; ?>
     <div class="card"><h4><?= e($t) ?></h4>
-      <?= $kind === 'cols' ? chart_columns_svg($d, $money) : chart_bar_svg($d, $money) ?></div>
+      <?= $kind === 'dual' ? chart_dual_svg($d, $ch[4], $money, str_contains($t, 'custos') ? ['Receita', 'Custos'] : ['Receitas', 'Despesas']) : ($kind === 'cols' ? chart_columns_svg($d, $money) : chart_bar_svg($d, $money)) ?></div>
   <?php endforeach; ?>
 </section>
 
